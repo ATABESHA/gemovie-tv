@@ -8,18 +8,26 @@ on:
 permissions:
   contents: write
 
+# A newer push cancels an older build still running.
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      # The GitHub runner already has the Android SDK ($ANDROID_HOME);
+      # the Android Gradle plugin downloads any missing platform itself.
+      - name: Check Android SDK
+        run: echo "ANDROID_HOME=$ANDROID_HOME" && ls "$ANDROID_HOME/platforms" | tail -3
 
       - uses: gradle/actions/setup-gradle@v4
         with:
