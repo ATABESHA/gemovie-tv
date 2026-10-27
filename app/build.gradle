@@ -2,6 +2,9 @@ plugins {
     id 'com.android.application'
 }
 
+// The GitHub build passes its run number, so every build has a higher version.
+def buildNumber = Integer.parseInt((project.findProperty('versionCode') ?: '1').toString())
+
 android {
     namespace 'com.atabesha.gemovietv'
     compileSdk 34
@@ -10,15 +13,28 @@ android {
         applicationId 'com.atabesha.gemovietv'
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
+    }
+
+    // A fixed key, so a new APK installs over the old one (keeping sign-ins).
+    // Personal sideloaded app: the key is kept in the repo on purpose.
+    signingConfigs {
+        tv {
+            storeFile file('gemovie-tv.jks')
+            storePassword 'gemovietv'
+            keyAlias 'gemovie'
+            keyPassword 'gemovietv'
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig signingConfigs.tv
+        }
         release {
             minifyEnabled false
-            // Signed with the debug key so the release APK installs by sideloading.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.tv
         }
     }
 
@@ -35,4 +51,5 @@ android {
 
 dependencies {
     implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'androidx.core:core:1.13.1'
 }

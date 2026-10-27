@@ -34,10 +34,12 @@ jobs:
           gradle-version: '8.7'
 
       - name: Build
-        run: gradle --no-daemon assembleRelease
+        run: gradle --no-daemon -PversionCode=${{ github.run_number }} assembleRelease
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/release/app-release.apk gemovie-tv.apk
+      - name: Rename APK and write version
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk gemovie-tv.apk
+          echo "${{ github.run_number }}" > version.txt
 
       - name: Upload APK (Actions tab)
         uses: actions/upload-artifact@v4
@@ -51,5 +53,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest gemovie-tv.apk --title "GE Movie TV (latest build)" \
-            --notes "Built from ${GITHUB_SHA::7}. Install on the TV by sideloading."
+          gh release create latest gemovie-tv.apk version.txt \
+            --title "GE Movie TV (build ${{ github.run_number }})" \
+            --notes "Built from ${GITHUB_SHA::7}. The app on the TV offers this update by itself."

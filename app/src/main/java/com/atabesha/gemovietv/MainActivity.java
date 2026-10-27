@@ -66,6 +66,7 @@ public class MainActivity extends Activity {
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final Set<String> extraAllowedHosts = new HashSet<>();
+    private final Updater updater = new Updater(this);
 
     private FrameLayout root;
     private WebView web;
@@ -75,6 +76,8 @@ public class MainActivity extends Activity {
     private String lastFailedUrl;
     private volatile boolean editing;
     private volatile boolean playing;
+    /** True while the arrows move over the player's own controls in full screen. */
+    private volatile boolean fsControls;
     private long lastBackPress;
 
     @Override
@@ -201,7 +204,13 @@ public class MainActivity extends Activity {
 
     private void handleBack() {
         if (customView != null) {
-            exitFullscreen();
+            if (fsControls) {
+                // First Back hides the player-controls highlight; the next one leaves full screen.
+                fsControls = false;
+                js("window.__tv&&__tv.key('back',true,0)", null);
+            } else {
+                exitFullscreen();
+            }
             return;
         }
         // Let the page close a menu / dialog / text field first.
@@ -221,20 +230,24 @@ public class MainActivity extends Activity {
         });
     }
 
-    /** A real touch tap at a point given as fractions of the WebView size. */
+    /**
+     * A real touch tap at a point given as fractions of the screen area showing the
+     * page: the WebView normally, the full-screen player view while a video is full screen.
+     */
     private void tap(float fx, float fy) {
-        float x = fx * web.getWidth();
-        float y = fy * web.getHeight();
+        final View target = customView != null ? customView : web;
+        float x = fx * target.getWidth();
+        float y = fy * target.getHeight();
         long t = SystemClock.uptimeMillis();
         MotionEvent d = MotionEvent.obtain(t, t, MotionEvent.ACTION_DOWN, x, y, 0);
         d.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-        web.dispatchTouchEvent(d);
+        target.dispatchTouchEvent(d);
         d.recycle();
         ui.postDelayed(() -> {
             MotionEvent u = MotionEvent.obtain(t, SystemClock.uptimeMillis(),
                     MotionEvent.ACTION_UP, x, y, 0);
             u.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-            web.dispatchTouchEvent(u);
+            target.dispatchTouchEvent(u);
             u.recycle();
         }, 50);
     }
@@ -243,6 +256,7 @@ public class MainActivity extends Activity {
 
     private void exitFullscreen() {
         if (customView == null) return;
+        fsControls = false;
         root.removeView(customView);
         customView = null;
         web.setVisibility(View.VISIBLE);
@@ -373,6 +387,11 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void setFsControls(boolean value) {
+            fsControls = value;
+        }
+
+        @JavascriptInterface
         public void tap(float fx, float fy) {
             ui.post(() -> MainActivity.this.tap(fx, fy));
         }
@@ -427,6 +446,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         web.onResume();
+        updater.onResume();
     }
 
     @Override

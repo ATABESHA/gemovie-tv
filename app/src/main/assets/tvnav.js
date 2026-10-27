@@ -1,8 +1,9 @@
 /*
  * TV remote navigation for a web page inside the app's WebView.
- * Runs in every frame:
- *  - all frames: video control (play/pause/seek) driven by messages
- *  - top frame:  arrow-key focus highlight, OK = real tap, Back handling
+ * Runs in every frame (video players usually live in iframes):
+ *  - video control (play/pause/seek) routed to whichever frame has the video
+ *  - arrow-key highlight + OK = real tap, in the page and, in full screen,
+ *    over the player's own controls (quality, audio, settings …)
  */
 (function () {
   'use strict';
@@ -12,7 +13,11 @@
   var App = window.TVApp;
   var TOP = window.top === window;
 
-  // ------------------------------------------------------------- media
+  function call(name, arg) {
+    try { if (App && App[name]) App[name](arg); } catch (e) {}
+  }
+
+  // ============================================================== media
   function playSafe(v) {
     try { var p = v.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
   }
@@ -64,14 +69,9 @@
     if (!TOP && (cmd === 'playpause' || cmd === 'play')) clickCenter();
   }
 
-  window.addEventListener('message', function (ev) {
-    var d = ev.data;
-    if (d && d.__tv && d.__tv.media) media(d.__tv.media, d.__tv.arg);
-  });
-
   function reportPlaying() {
     var v = mainVideo();
-    try { App && App.setPlaying(!!(v && !v.paused && !v.ended)); } catch (e) {}
+    call('setPlaying', !!(v && !v.paused && !v.ended));
   }
   ['playing', 'pause', 'ended'].forEach(function (t) {
     document.addEventListener(t, reportPlaying, true);
@@ -79,7 +79,7 @@
 
   var osdTimer = null;
   function osd(text) {
-    var host = document.fullscreenElement || document.webkitFullscreenElement;
+    var host = fsEl();
     if (!host || host.tagName === 'VIDEO') host = document.body;
     if (!host) return;
     var el = document.getElementById('__tvosd');
@@ -111,22 +111,23 @@
     else el.dispatchEvent(new MouseEvent('click', o));
   }
 
-  if (!TOP) return;
-
-  // ------------------------------------------------------- page setup
-  var VIEWPORT = __VIEWPORT_WIDTH__;
-
-  function fixViewport() {
-    if (!VIEWPORT || !document.head) return;
-    var want = 'width=' + VIEWPORT;
-    var m = document.querySelector('meta[name=viewport]');
-    if (!m) {
-      m = document.createElement('meta');
-      m.name = 'viewport';
-      document.head.appendChild(m);
-    }
-    if (m.getAttribute('content') !== want) m.setAttribute('content', want);
+  function fsEl() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
   }
+
+  // ========================================== navigation engine (any frame)
+  var NATIVE = 'a[href],button,input:not([type=hidden]),select,textarea,summary,' +
+    '[onclick],[role=button],[role=link],[role=tab],[role=menuitem],[role=menuitemradio],' +
+    '[role=menuitemcheckbox],[role=option],[role=radio],[role=switch],[role=slider],' +
+    '[tabindex]:not([tabindex="-1"]),video,iframe';
+  var LINKISH = 'a[href],button,[role=button],[role=link]';
+
+  var cache = null;      // gathered candidates, rebuilt when the DOM changes
+  var cacheRoot = null;
+  var cur = null;        // highlighted element
+  var lastRect = null;   // where the highlight was, to recover if the element disappears
+  var editing = false;
+  var fsMode = false;    // navigating the player's controls in full screen
 
   function addStyle() {
     if (!document.head || document.getElementById('__tvstyle')) return;
@@ -141,27 +142,27 @@
     document.head.appendChild(st);
   }
 
-  // ------------------------------------------------- focusable items
-  var NATIVE = 'a[href],button,input:not([type=hidden]),select,textarea,summary,' +
-    '[onclick],[role=button],[role=link],[role=tab],[role=menuitem],[role=option],' +
-    '[tabindex]:not([tabindex="-1"]),video,iframe';
-  var LINKISH = 'a[href],button,[role=button],[role=link]';
-
-  var cache = null;      // gathered candidates, rebuilt when the DOM changes
-  var cur = null;        // highlighted element
-  var lastRect = null;   // where the highlight was, to recover if the element disappears
-  var editing = false;
+  function scopeRoot() {
+    return (fsMode && fsEl()) || document.body;
+  }
 
   function gather() {
-    if (cache) return cache;
+    var root = scopeRoot();
+    if (cache && cacheRoot === root) return cache;
+    cacheRoot = root;
     var found = [], set = new Set();
-    function add(el) { if (!set.has(el)) { set.add(el); found.push(el); } }
+    function add(el) {
+      if (set.has(el)) return;
+      if (fsMode && (el.tagName === 'VIDEO' || el.tagName === 'IFRAME')) return;
+      set.add(el); found.push(el);
+    }
+    if (!root) return (cache = []);
 
-    var nat = document.querySelectorAll(NATIVE);
+    var nat = root.querySelectorAll(NATIVE);
     for (var i = 0; i < nat.length; i++) add(nat[i]);
 
     // Elements the site made clickable with JS: they show a pointer cursor.
-    var all = document.body ? document.body.getElementsByTagName('*') : [];
+    var all = root.getElementsByTagName('*');
     for (var j = 0; j < all.length; j++) {
       var el = all[j];
       if (set.has(el)) continue;
@@ -179,17 +180,16 @@
     var containers = new Set();
     found.forEach(function (el) {
       for (var a = el.parentElement; a; a = a.parentElement) {
-        if (set.has(a)) { containers.add(a); }
+        if (set.has(a)) containers.add(a);
       }
     });
-    cache = found.filter(function (el) {
+    var kept = found.filter(function (el) {
       if (!containers.has(el)) return true;
       // A link wrapping only non-link children (e.g. a poster card) stays.
       return el.matches(LINKISH) && !el.querySelector(LINKISH + ',input,select,textarea');
     });
-    // Drop children of a kept link card.
-    var keep = new Set(cache);
-    cache = cache.filter(function (el) {
+    var keep = new Set(kept);
+    cache = kept.filter(function (el) {
       for (var a = el.parentElement; a; a = a.parentElement) {
         if (keep.has(a) && a.matches(LINKISH)) return false;
       }
@@ -205,7 +205,7 @@
     if (r.right <= 0 || r.bottom <= -innerHeight * 50) return false;
     var vw = innerWidth, vh = innerHeight;
     var inView = r.right > 0 && r.left < vw && r.bottom > 0 && r.top < vh;
-    if (!inView) return true;
+    if (!inView) return !fsMode;
     // On screen: make sure it is not covered or clipped away.
     var x = Math.min(Math.max(r.left + r.width / 2, 1), vw - 1);
     var y = Math.min(Math.max(r.top + r.height / 2, 1), vh - 1);
@@ -222,7 +222,6 @@
     return out;
   }
 
-  // -------------------------------------------------------- movement
   function score(a, b, dir) {
     var acx = (a.left + a.right) / 2, acy = (a.top + a.bottom) / 2;
     var bcx = (b.left + b.right) / 2, bcy = (b.top + b.bottom) / 2;
@@ -257,6 +256,16 @@
     return best || (list[0] && list[0].el);
   }
 
+  // Player controls: start on the bottom row, leftmost (usually play/pause).
+  function pickControlStart(list) {
+    var best = null, bs = Infinity;
+    list.forEach(function (o) {
+      var s = (innerHeight - o.r.bottom) * 3 + o.r.left;
+      if (s < bs) { bs = s; best = o.el; }
+    });
+    return best;
+  }
+
   function focusEl(el, scroll) {
     if (cur) cur.classList.remove('__tvf', '__tvs');
     cur = el;
@@ -269,10 +278,10 @@
         getComputedStyle(el).transform === 'none') {
       el.classList.add('__tvs');
     }
-    if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+    if (!fsMode && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
       try { el.focus({ preventScroll: true }); } catch (e) {}
     }
-    if (scroll !== false) {
+    if (scroll !== false && !fsMode) {
       var needV = r.top < 90 || r.bottom > innerHeight - 60;
       var needH = r.left < 30 || r.right > innerWidth - 30;
       if (needV || needH) {
@@ -285,14 +294,21 @@
     lastRect = el.getBoundingClientRect();
   }
 
+  function clearFocus() {
+    if (cur) cur.classList.remove('__tvf', '__tvs');
+    cur = null;
+  }
+
   function move(dir, retried) {
     var list = items();
     if (!list.length) {
-      if (dir === 'down' || dir === 'up') window.scrollBy({ top: (dir === 'down' ? 1 : -1) * innerHeight * 0.6, behavior: 'smooth' });
+      if (!fsMode && (dir === 'down' || dir === 'up')) {
+        window.scrollBy({ top: (dir === 'down' ? 1 : -1) * innerHeight * 0.6, behavior: 'smooth' });
+      }
       return;
     }
     if (!cur || !cur.isConnected || gather().indexOf(cur) < 0) {
-      focusEl(pickStart(list));
+      focusEl(fsMode ? pickControlStart(list) : pickStart(list));
       return;
     }
     var a = cur.getBoundingClientRect(), best = null, bs = Infinity;
@@ -303,17 +319,16 @@
     });
     if (best) { focusEl(best); return; }
     // Nothing further: scroll so lazy-loaded rows can appear, then try once more.
-    if ((dir === 'down' || dir === 'up') && !retried) {
+    if (!fsMode && (dir === 'down' || dir === 'up') && !retried) {
       window.scrollBy({ top: (dir === 'down' ? 1 : -1) * innerHeight * 0.5, behavior: 'smooth' });
       setTimeout(function () { cache = null; move(dir, true); }, 500);
     }
   }
 
-  // ----------------------------------------------------------- actions
   function activate() {
     if (!cur || !cur.isConnected) { move('down'); return; }
     var r = cur.getBoundingClientRect();
-    if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) {
+    if (!fsMode && (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth)) {
       cur.scrollIntoView({ block: 'center', inline: 'center' });
       r = cur.getBoundingClientRect();
     }
@@ -322,16 +337,143 @@
     var h = document.elementFromPoint(x, y);
     var hitsIt = !!h && (h === cur || cur.contains(h) || h.contains(cur));
     if (hitsIt && App && App.tap) {
-      // A real touch tap: works inside video-player iframes and counts as a user gesture.
+      // A real touch tap: counts as a user gesture, works inside player iframes.
       App.tap(x / innerWidth, y / innerHeight);
     } else {
       syntheticClick(cur);
     }
   }
 
+  new MutationObserver(function () {
+    cache = null;
+    if (cur && !cur.isConnected) cur = null;
+    if (TOP) { fixViewport(); addStyle(); }
+  }).observe(document, { childList: true, subtree: true }); // works before <html> exists
+
+  // ===================================== full screen: player controls mode
+  var revealTimer = null, idleTimer = null;
+  var IDLE_MS = 10000;
+
+  // Players show their control bar when the mouse moves over them.
+  function reveal() {
+    var f = fsEl() || document.body;
+    if (!f) return;
+    var r = f.getBoundingClientRect();
+    var x = r.left + r.width / 2 + Math.random() * 6, y = r.top + r.height * 0.6;
+    var target = document.elementFromPoint(x, y) || f;
+    var o = { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y };
+    try {
+      target.dispatchEvent(new PointerEvent('pointermove', o));
+      target.dispatchEvent(new MouseEvent('mousemove', o));
+      target.dispatchEvent(new MouseEvent('mouseover', o));
+    } catch (e) {}
+  }
+
+  function resetIdle() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(exitControls, IDLE_MS);
+  }
+
+  function enterControls() {
+    fsMode = true;
+    cache = null;
+    lastRect = null;
+    addStyle();
+    call('setFsControls', true);
+    reveal();
+    clearInterval(revealTimer);
+    revealTimer = setInterval(reveal, 1500);
+    resetIdle();
+    setTimeout(function () {
+      if (!fsMode) return;
+      var list = items();
+      if (list.length) focusEl(pickControlStart(list), false);
+    }, 300);
+  }
+
+  function exitControls() {
+    if (!fsMode) return;
+    fsMode = false;
+    clearInterval(revealTimer);
+    clearTimeout(idleTimer);
+    clearFocus();
+    cache = null;
+    call('setFsControls', false);
+  }
+
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (t) {
+    document.addEventListener(t, function () { if (!fsEl()) exitControls(); });
+  });
+
+  // A key while the app shows a full-screen video. The frame that owns the
+  // full-screen element handles it; frames above just pass it down.
+  function fsKey(cmd) {
+    var f = fsEl();
+    if (f && f.tagName === 'IFRAME') {
+      try { f.contentWindow.postMessage({ __tv: { fskey: cmd } }, '*'); } catch (e) {}
+      return;
+    }
+    if (!f) { legacyFsKey(cmd); return; }
+
+    if (fsMode) {
+      resetIdle();
+      switch (cmd) {
+        case 'back': exitControls(); return;
+        case 'ok': activate(); setTimeout(function () { cache = null; }, 300); return;
+        case 'up': case 'down': case 'left': case 'right':
+          reveal(); cache = null; move(cmd); return;
+        case 'playpause': case 'play': case 'pause': case 'stop': media(cmd); return;
+        case 'ff': media('seek', 10); return;
+        case 'rw': media('seek', -10); return;
+      }
+      return;
+    }
+    switch (cmd) {
+      case 'ok': case 'playpause': media('playpause'); return;
+      case 'right': case 'ff': media('seek', 10); return;
+      case 'left': case 'rw': media('seek', -10); return;
+      case 'up': case 'down': enterControls(); return;
+      case 'play': case 'pause': case 'stop': media(cmd); return;
+    }
+  }
+
+  // Full screen without the Fullscreen API (a bare <video>): no controls to navigate.
+  function legacyFsKey(cmd) {
+    if (cmd === 'ok' || cmd === 'playpause') media('playpause');
+    else if (cmd === 'right' || cmd === 'ff') media('seek', 10);
+    else if (cmd === 'left' || cmd === 'rw') media('seek', -10);
+    else if (cmd === 'up') media('seek', 60);
+    else if (cmd === 'down') media('seek', -60);
+    else if (cmd === 'play' || cmd === 'pause' || cmd === 'stop') media(cmd);
+  }
+
+  window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (!d || !d.__tv) return;
+    if (d.__tv.media) media(d.__tv.media, d.__tv.arg);
+    else if (d.__tv.fskey) fsKey(d.__tv.fskey);
+  });
+
+  if (!TOP) return;
+
+  // ================================================ top page only
+  var VIEWPORT = __VIEWPORT_WIDTH__;
+
+  function fixViewport() {
+    if (!VIEWPORT || !document.head) return;
+    var want = 'width=' + VIEWPORT;
+    var m = document.querySelector('meta[name=viewport]');
+    if (!m) {
+      m = document.createElement('meta');
+      m.name = 'viewport';
+      document.head.appendChild(m);
+    }
+    if (m.getAttribute('content') !== want) m.setAttribute('content', want);
+  }
+
   function setEditing(v) {
     editing = v;
-    try { App && App.setEditing(v); } catch (e) {}
+    call('setEditing', v);
   }
 
   function isTextField(el) {
@@ -368,12 +510,8 @@
   var lastMove = 0;
   function key(cmd, fullscreen, repeat) {
     if (fullscreen) {
-      if (cmd === 'ok' || cmd === 'playpause') media('playpause');
-      else if (cmd === 'right' || cmd === 'ff') media('seek', 10);
-      else if (cmd === 'left' || cmd === 'rw') media('seek', -10);
-      else if (cmd === 'up') media('seek', 60);
-      else if (cmd === 'down') media('seek', -60);
-      else if (cmd === 'play' || cmd === 'pause' || cmd === 'stop') media(cmd);
+      if (cmd === 'ok' && repeat) return;
+      fsKey(cmd);
       return;
     }
     switch (cmd) {
@@ -386,6 +524,8 @@
         return;
       case 'ok':
         if (!repeat) activate();
+        return;
+      case 'back':
         return;
     }
     var now = Date.now();
@@ -404,6 +544,7 @@
     cache = null;
     if (!cur || !cur.isConnected) {
       setTimeout(function () {
+        if (fsEl()) return;
         if (!cur || !cur.isConnected) {
           var list = items();
           if (list.length) focusEl(pickStart(list), false);
@@ -412,20 +553,8 @@
     }
   }
 
-  function init() {
-    fixViewport();
-    addStyle();
-    new MutationObserver(function () {
-      cache = null;
-      if (cur && !cur.isConnected) cur = null;
-      fixViewport();
-      addStyle();
-    }).observe(document.documentElement, { childList: true, subtree: true });
-    pageReady();
-  }
-
   window.__tv = { key: key, back: back, pageReady: pageReady };
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pageReady);
+  else pageReady();
 })();

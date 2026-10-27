@@ -9,9 +9,21 @@ Made for Sony Bravia 4K UR2 (Android TV 10), works on any Android TV / Google TV
 
 | Button | While browsing | While a video is full screen |
 |---|---|---|
-| Arrows | Move the highlight (rows scroll by themselves) | ◀ ▶ seek 10 s, ▲ ▼ seek 1 min |
+| Arrows | Move the highlight (rows scroll by themselves) | ◀ ▶ seek 10 s; ▲ or ▼ shows the player controls |
 | OK | Open / press the highlighted item | Play / pause |
 | Back | Close menu or keyboard, then previous page; press twice on the home page to exit | Leave full screen |
+
+**Player controls in full screen** (quality, audio, subtitles, settings): press ▲ or ▼.
+The player's control bar appears with a red highlight; move with the arrows and press OK
+to open a menu or choose an option. Back (or 10 s without pressing anything) returns to
+normal playback; Back again leaves full screen.
+
+## Updates
+
+The app checks GitHub when it starts (and every 6 hours while open). When a new build is
+there it asks **"Update available – Install?"**; choose Install. The first time, Android asks
+to allow GE Movie to install apps: turn it on and press Back, the install continues.
+Sign-ins and settings are kept.
 | Play/Pause, ⏩ ⏪ | Control the video on the page | Same |
 | Channel +/− | Scroll a page up/down | — |
 
