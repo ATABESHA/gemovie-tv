@@ -155,7 +155,8 @@ public class MainActivity extends Activity {
         int code = e.getKeyCode();
         boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
 
-        if (code == KeyEvent.KEYCODE_BACK) {
+        // Esc = Back, so a PC keyboard (BlueStacks) works like the TV remote.
+        if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE) {
             if (down && e.getRepeatCount() == 0) handleBack();
             return true;
         }

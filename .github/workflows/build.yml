@@ -1,21 +1,33 @@
 name: Build APK
 
+# Two channels:
+#  - every push to main  -> TEST build  (release "test", for BlueStacks / PC)
+#  - a tag named tv-*    -> TV release  (release "latest", the TV offers it as an update)
+#    or run this workflow by hand with "Publish to TV" ticked.
 on:
   push:
-    branches: [main, master]
+    branches: [main]
+    tags: ['tv-*']
   workflow_dispatch:
+    inputs:
+      publish_to_tv:
+        description: 'Publish to TV (the TV app will offer this update)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
-# A newer push cancels an older build still running.
+# A newer build on the same channel replaces an older one still running.
 concurrency:
-  group: build-apk
+  group: build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      TO_TV: ${{ startsWith(github.ref, 'refs/tags/tv-') || inputs.publish_to_tv == true }}
     steps:
       - uses: actions/checkout@v4
 
@@ -44,15 +56,28 @@ jobs:
       - name: Upload APK (Actions tab)
         uses: actions/upload-artifact@v4
         with:
-          name: gemovie-tv
+          name: gemovie-tv-${{ github.run_number }}
           path: gemovie-tv.apk
 
-      # Fixed download link: .../releases/download/latest/gemovie-tv.apk
-      - name: Publish as "latest" release
+      # Test channel: .../releases/download/test/gemovie-tv-test.apk
+      - name: Publish TEST build
+        if: env.TO_TV != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp gemovie-tv.apk gemovie-tv-test.apk
+          gh release delete test --yes --cleanup-tag || true
+          gh release create test gemovie-tv-test.apk --prerelease --target "$GITHUB_SHA" \
+            --title "TEST build ${{ github.run_number }} (not on the TV)" \
+            --notes "Built from ${GITHUB_SHA::7}. For testing in BlueStacks. The TV ignores this."
+
+      # TV channel: .../releases/download/latest/gemovie-tv.apk (+ version.txt for the updater)
+      - name: Publish to TV
+        if: env.TO_TV == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest gemovie-tv.apk version.txt \
+          gh release create latest gemovie-tv.apk version.txt --target "$GITHUB_SHA" \
             --title "GE Movie TV (build ${{ github.run_number }})" \
             --notes "Built from ${GITHUB_SHA::7}. The app on the TV offers this update by itself."

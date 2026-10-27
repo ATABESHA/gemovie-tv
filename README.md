@@ -18,6 +18,24 @@ The player's control bar appears with a red highlight; move with the arrows and 
 to open a menu or choose an option. Back (or 10 s without pressing anything) returns to
 normal playback; Back again leaves full screen.
 
+## Test builds vs TV releases
+
+- **Every push to `main`** builds a **test** APK only:
+  `https://github.com/ATABESHA/gemovie-tv/releases/download/test/gemovie-tv-test.apk`.
+  The TV never sees it.
+- **To send a version to the TV**, push a tag named `tv-…` (e.g. `tv-5`), or open
+  Actions → Build APK → Run workflow and tick **Publish to TV**. The TV app then offers
+  the update.
+
+### Testing on the PC with BlueStacks
+
+1. Download the test APK above and drag it onto the BlueStacks window (or use
+   *Install APK* in the side bar).
+2. Open **GE Movie** in BlueStacks. Turn off BlueStacks' game controls / key mapping for
+   this app so the arrows reach it.
+3. Keyboard = remote: **arrow keys** move, **Enter** = OK, **Esc** = Back.
+4. A new test build installs over the old one the same way (sign-ins are kept).
+
 ## Updates
 
 The app checks GitHub when it starts (and every 6 hours while open). When a new build is
