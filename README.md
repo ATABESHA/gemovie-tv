@@ -5,7 +5,28 @@ TV remote, Netflix-style: no mouse pointer, a red highlight moves between items.
 
 Made for Sony Bravia 4K UR2 (Android TV 10), works on any Android TV / Google TV.
 
-## Remote controls
+## ge.movie layout
+
+- **Two zones**: the left menu (მთავარი, ფილმები, სერიალები, მალე, ტელევიზია, მსახიობები)
+  and the content on the right (search, rows of movies…). Up/Down stay in the zone you're in.
+  **Left** at the start of a row opens the menu; **Right** goes back to where you were.
+- A whole **movie card** gets the red frame; rows slide along as you move.
+- **OK on a movie** opens it straight in the full-screen player and starts playing.
+
+### Player (full screen)
+
+| Button | Does |
+|---|---|
+| ◀ ▶ | Back / forward 10 s (hold: 30 s, then 60 s steps) — jumps once you let go |
+| OK | Play / pause |
+| ▲ or ▼ | Opens the panel: ▶/❚❚ · Next episode · Episodes · Audio · Quality · Subtitles · Speed · Volume |
+| In the panel | ◀ ▶ choose a tile, OK (or ▲) opens its list (✓ = current), ▲ ▼ pick, OK sets it |
+| Back | Closes the list, then the panel, then leaves the player |
+
+Quality starts at **1080p** (the player itself picks 4K, which is too heavy for the TV).
+Your choices of quality, audio and subtitles are remembered for the next movie.
+
+## Remote controls (other sites)
 
 | Button | While browsing | While a video is full screen |
 |---|---|---|

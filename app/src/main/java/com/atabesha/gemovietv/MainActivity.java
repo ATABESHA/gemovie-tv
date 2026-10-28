@@ -210,14 +210,15 @@ public class MainActivity extends Activity {
     }
 
     private void handleBack() {
+        // A player panel or list is open: Back closes it first (the player
+        // reports again if something is still open).
+        if (fsControls) {
+            fsControls = false;
+            js("window.__tv&&__tv.key('back',true,0)", null);
+            return;
+        }
         if (customView != null) {
-            if (fsControls) {
-                // First Back hides the player-controls highlight; the next one leaves full screen.
-                fsControls = false;
-                js("window.__tv&&__tv.key('back',true,0)", null);
-            } else {
-                exitFullscreen();
-            }
+            exitFullscreen();
             return;
         }
         // Let the page close a menu / dialog / text field first.
