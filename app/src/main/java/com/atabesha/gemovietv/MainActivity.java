@@ -141,6 +141,8 @@ public class MainActivity extends Activity {
             }
             root.removeView(s);
             web.requestFocus();
+            // Make sure no text box got the page's focus on the way.
+            js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", null);
         }).start();
     }
 

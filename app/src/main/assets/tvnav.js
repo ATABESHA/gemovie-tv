@@ -527,14 +527,30 @@
     (function wait() {
       if (!PL.started) return;
       if (!pjs()) { if (++tries < 60) setTimeout(wait, 300); else PL.started = false; return; }
-      var switchEp = resume && resume.ep && api('playlist_id') !== resume.ep;
-      if (switchEp) api('play', 'id:' + resume.ep); else api('play');
+      api('play');
       loadPlaylist();
       applyPrefs();
       cleanWhenReady();
-      if (resume && resume.t > 5) seekWhenReady(resume.t, switchEp ? 1500 : 0);
+      if (resume && resume.ep) {
+        // Series: go to the saved episode first (the player may still be loading its list),
+        // then to the saved time in it.
+        ensureEpisode(resume.ep, function () { if (resume.t > 5) seekWhenReady(resume.t, 800); });
+      } else if (resume && resume.t > 5) {
+        seekWhenReady(resume.t, 0);
+      }
       clearInterval(progTimer);
       progTimer = setInterval(function () { if (api('playing')) reportProgress(); }, 15000);
+    })();
+  }
+
+  function ensureEpisode(ep, done) {
+    var n = 0;
+    (function attempt() {
+      var id = api('playlist_id');
+      if (id === ep) { done(); return; }
+      // ask again every ~1.4 s until the player has switched (it ignores it while loading)
+      if (id && n % 2 === 0) api('play', 'id:' + ep);
+      if (++n < 30) setTimeout(attempt, 700); else done();
     })();
   }
 

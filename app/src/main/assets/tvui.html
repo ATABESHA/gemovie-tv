@@ -15,8 +15,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 /* ---------- top bar */
 #top{position:absolute;left:0;right:0;top:0;height:76px;display:flex;align-items:center;gap:10px;
   padding:0 48px;z-index:5;background:linear-gradient(#0b0c10 55%,rgba(11,12,16,0))}
-#top .logo{display:flex;align-items:center;gap:10px;padding:4px 14px 4px 4px;border-radius:26px;margin-right:14px}
-#top .logo img{height:44px;width:44px;border-radius:12px;display:block}
+#top .logo{display:flex;align-items:center;padding:4px;border-radius:12px;margin-right:14px}
+#top .logo img{height:46px;width:auto;border-radius:8px;display:block}
 #top .logo span{font-size:18px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
 #top .logo span i{font-style:normal;color:#c8afff}
 #top .tab{font-size:18px;padding:9px 16px;border-radius:24px;color:var(--dim)}
@@ -117,7 +117,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   <section id="browse" class="screen"><div class="scroller"><div class="body"></div></div></section>
 
   <div id="top">
-    <div class="logo f" data-act="home"><img src="__LOGO__" alt=""><span>My<i>Movie</i></span></div>
+    <div class="logo f" data-act="home"><img src="__LOGO__" alt="MyMovie"></div>
     <div class="tab f" data-act="home" id="t-home">მთავარი</div>
     <div class="tab f" data-act="movie" id="t-movie">ფილმები</div>
     <div class="tab f" data-act="serial" id="t-serial">სერიალები</div>
@@ -603,7 +603,11 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     f.id = 'player';
     f.allow = 'autoplay; encrypted-media; fullscreen';
     f.setAttribute('allowfullscreen', '');
-    f.src = detData.embed;
+    var src = detData.embed, m = resume && /^(\d+)-(\d+)$/.exec(resume.ep || '');
+    if (m && /[?&]season=\d+/.test(src)) {
+      src = src.replace(/([?&]season=)\d+/, '$1' + m[1]).replace(/([?&]episode=)\d+/, '$1' + m[2]);
+    }
+    f.src = src;
     startMsg = { pstart: 1, resume: resume ? { t: resume.t || 0, ep: resume.ep || '' } : null };
     f.addEventListener('load', function () { post(startMsg); });
     playing = f;
@@ -750,6 +754,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     if (it) { openDetails(it); return; }
     if (el.id === 'q') {
       // Opens the TV keyboard; Enter on it runs the search.
+      qWanted = true;
       var r = el.getBoundingClientRect();
       if (App && App.tap) App.tap((r.left + r.width / 2) / innerWidth, (r.top + r.height / 2) / innerHeight);
       else el.focus();
@@ -778,6 +783,12 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   $('#q').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
   });
+  // Android may put the page's focus into the first text box on its own (for example
+  // after the start-up animation). Then the remote's arrows and OK would type into the
+  // search field instead of moving the menu. Only OK on the field may give it the focus.
+  var qWanted = false;
+  $('#q').addEventListener('focus', function () { if (!qWanted) $('#q').blur(); });
+  $('#q').addEventListener('blur', function () { qWanted = false; });
 
   // ============================================== remote keys (from the app)
   var lastKey = 0;
