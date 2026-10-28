@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="ka">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>GE Movie</title>
+<style>
+:root{--red:#e50914;--bg:#0b0c10;--panel:#16171d;--dim:rgba(255,255,255,.62)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
+  font-family:"Noto Sans Georgian","FiraGO",sans-serif;-webkit-tap-highlight-color:transparent}
+#app{position:fixed;inset:0}
+#app.off{display:none}
+
+/* ---------- top bar */
+#top{position:absolute;left:0;right:0;top:0;height:76px;display:flex;align-items:center;gap:10px;
+  padding:0 48px;z-index:5;background:linear-gradient(#0b0c10 55%,rgba(11,12,16,0))}
+#top .logo{padding:8px 10px;border-radius:10px;margin-right:18px}
+#top .logo img{height:22px;display:block}
+#top .tab{font-size:19px;padding:9px 20px;border-radius:24px;color:var(--dim)}
+#top .tab.on{color:#fff;background:rgba(255,255,255,.12)}
+#q{margin-left:auto;width:360px;height:46px;border-radius:24px;border:0;padding:0 22px;
+  font:17px "Noto Sans Georgian",sans-serif;background:rgba(255,255,255,.12);color:#fff;outline:none}
+#q::placeholder{color:var(--dim)}
+#go{height:46px;padding:0 24px;border-radius:24px;background:rgba(255,255,255,.12);font-size:17px;
+  display:flex;align-items:center}
+#top .fx{background:#fff!important;color:#000!important}
+#top .logo.fx{background:rgba(255,255,255,.9)!important}
+#q.fx{background:rgba(255,255,255,.22)!important;color:#fff!important;box-shadow:0 0 0 3px #fff}
+
+/* ---------- preview (focused title + description) */
+#pv{position:absolute;left:0;right:0;top:0;height:330px;overflow:hidden}
+#pv .bg{position:absolute;right:0;top:0;width:66%;height:100%;background-size:cover;background-position:center 25%;
+  opacity:0;transition:opacity .35s}
+#pv .bg.on{opacity:1}
+#pv .fade{position:absolute;inset:0;background:linear-gradient(90deg,var(--bg) 34%,rgba(11,12,16,.75) 55%,rgba(11,12,16,0) 80%),
+  linear-gradient(0deg,var(--bg) 0,rgba(11,12,16,0) 40%)}
+#pv .txt{position:absolute;left:48px;top:84px;width:640px}
+#pv h1{margin:0;font-size:34px;line-height:1.15;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pv .en{font-size:17px;color:var(--dim);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;font-size:15px;color:#ddd}
+.meta span{background:rgba(255,255,255,.12);padding:3px 10px;border-radius:6px}
+.meta .imdb{background:#f5c518;color:#000;font-weight:700}
+#pv .plot{margin-top:12px;font-size:16px;line-height:1.5;color:#ddd;display:-webkit-box;-webkit-line-clamp:3;
+  -webkit-box-orient:vertical;overflow:hidden;min-height:24px}
+
+/* ---------- scrolling content under the preview */
+.screen{position:absolute;inset:0;display:none}
+.screen.on{display:block}
+.scroller{position:absolute;left:0;right:0;top:330px;bottom:0;overflow:hidden}
+.screen.full .scroller{top:76px}
+.line{padding:0 48px}
+.row h3{margin:6px 0 2px;font-size:20px;font-weight:600}
+.track{display:flex;gap:18px;padding:14px 0 18px;transition:transform .25s ease;will-change:transform}
+.card{flex:0 0 150px;width:150px}
+.card .img{width:150px;height:225px;border-radius:10px;background:#22232a center/cover no-repeat;position:relative;
+  transition:transform .15s ease}
+.card .img img{width:100%;height:100%;object-fit:cover;border-radius:10px;display:block}
+.card .badge{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.75);font-size:12px;padding:2px 7px;border-radius:5px}
+.card .t{margin-top:8px;font-size:14px;line-height:1.3;height:36px;overflow:hidden;color:#ccc}
+.card.fx .img{transform:scale(1.08);box-shadow:0 0 0 4px var(--red),0 12px 30px rgba(0,0,0,.7)}
+.card.fx .t{color:#fff}
+.grid{display:flex;gap:18px;padding:12px 0 8px}
+.bar{display:flex;gap:12px;align-items:center;padding-top:4px;padding-bottom:10px}
+.btn{font-size:17px;padding:10px 20px;border-radius:24px;background:rgba(255,255,255,.12);white-space:nowrap}
+.btn small{color:var(--dim);margin-left:6px}
+.btn.fx{background:#fff;color:#000}
+.btn.fx small{color:#555}
+.note{font-size:15px;color:var(--dim);margin-left:auto}
+.msg{padding:40px 48px;font-size:20px;color:var(--dim)}
+.msg .btn{display:inline-block;margin:16px 10px 0 0;color:#fff}
+
+/* ---------- details */
+#det{position:fixed;inset:0;display:none;background:var(--bg)}
+#det.on{display:block}
+#det .bg{position:absolute;right:0;top:0;width:75%;height:100%;background-size:cover;background-position:center 20%}
+#det .fade{position:absolute;inset:0;background:linear-gradient(90deg,var(--bg) 30%,rgba(11,12,16,.8) 52%,rgba(11,12,16,.1) 85%),
+  linear-gradient(0deg,var(--bg) 0,rgba(11,12,16,0) 35%)}
+#det .txt{position:absolute;left:64px;top:70px;width:660px}
+#det h1{margin:0;font-size:42px;line-height:1.15}
+#det .en{font-size:19px;color:var(--dim);margin-top:6px}
+#det .facts{margin-top:16px;font-size:16px;line-height:1.7;color:#ccc}
+#det .facts b{color:#fff;font-weight:600}
+#det .plot{margin-top:14px;font-size:17px;line-height:1.55;color:#e4e4e4;display:-webkit-box;-webkit-line-clamp:6;
+  -webkit-box-orient:vertical;overflow:hidden}
+#det .bar{padding:26px 0 0}
+#det .btn{font-size:20px;padding:13px 30px}
+#det .btn.play{background:var(--red)}
+#det .btn.play.fx{background:#fff}
+
+/* ---------- list overlay (filters) */
+#ov{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:20}
+#ov.on{display:block}
+#ov .box{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:440px;max-height:600px;
+  background:#1c1d24;border-radius:16px;padding:14px 0;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.7)}
+#ov h4{margin:4px 26px 10px;font-size:16px;color:var(--dim);font-weight:500}
+#ov .items{max-height:540px;overflow:hidden}
+#ov .it{font-size:19px;padding:11px 26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ov .it.sel{background:#fff;color:#000}
+
+/* ---------- player: only this is shown while a movie plays */
+#player{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#000;z-index:30}
+#loading{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-size:20px;color:var(--dim);z-index:25;display:none}
+#loading.on{display:block}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="pv"><div class="bg"></div><div class="fade"></div>
+    <div class="txt"><h1></h1><div class="en"></div><div class="meta"></div><div class="plot"></div></div></div>
+
+  <section id="home" class="screen"><div class="scroller"><div class="body"></div></div></section>
+  <section id="browse" class="screen"><div class="scroller"><div class="body"></div></div></section>
+
+  <div id="top">
+    <div class="logo f" data-act="home"><img src="/img/logo.png" alt="GE.MOVIE"></div>
+    <div class="tab f" data-act="home" id="t-home">მთავარი</div>
+    <div class="tab f" data-act="movie" id="t-movie">ფილმები</div>
+    <div class="tab f" data-act="serial" id="t-serial">სერიალები</div>
+    <input id="q" class="f" type="text" placeholder="მოძებნე ფილმები, სერიალები..." autocomplete="off">
+    <div id="go" class="f" data-act="search">ძებნა</div>
+  </div>
+</div>
+
+<div id="det"><div class="bg"></div><div class="fade"></div><div class="txt"></div></div>
+<div id="ov"><div class="box"><h4></h4><div class="items"></div></div></div>
+<div id="loading">იტვირთება…</div>
+
+<script>
+(function () {
+  'use strict';
+  var App = window.TVApp;
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function txt(root, sel) { var e = root.querySelector(sel); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; }
+  function tmdb(u, size) { return u ? u.replace('/t/p/original/', '/t/p/' + size + '/') : ''; }
+
+  // ================================================================ data
+  // Everything comes from ge.movie's own pages (same site, so the app may read them).
+  var docCache = new Map();
+  function getDoc(url) {
+    if (docCache.has(url)) return docCache.get(url);
+    var p = fetch(url, { credentials: 'include' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    }).then(function (h) { return new DOMParser().parseFromString(h, 'text/html'); });
+    docCache.set(url, p);
+    p.catch(function () { docCache.delete(url); });
+    if (docCache.size > 40) docCache.delete(docCache.keys().next().value);
+    return p;
+  }
+
+  function parseCard(c) {
+    var a = c.querySelector('a[href*="/movie/"],a[href*="/serial/"]');
+    if (!a) return null;
+    var url = a.getAttribute('href');
+    var img = c.querySelector('img[data-src]') || c.querySelector('img');
+    var poster = img ? (img.getAttribute('data-src') || img.getAttribute('src') || '') : '';
+    if (/thumb\.svg|poster\.svg/.test(poster)) poster = '';
+    var tA = c.querySelector('h2 a[title]') || c.querySelector('a[title]') || a;
+    var both = (tA.getAttribute('title') || '').split(' / ');
+    var p = c.querySelector('h2 p'), sp = c.querySelector('h2 span');
+    var eps = c.querySelector('.gm-card-episodes:not([hidden]) .gm-episode-text');
+    return {
+      url: url, serial: /\/serial\//.test(url),
+      title: p ? p.textContent.trim() : both[0], en: sp ? sp.textContent.trim() : (both[1] || ''),
+      poster: tmdb(poster, 'w342'), bg: tmdb(img && img.getAttribute('bg') || '', 'w1280'),
+      rating: txt(c, '.imdb span'), year: txt(c, '.gm-year-value'), eps: eps ? eps.textContent.trim() : '',
+      langs: $$('.gm-language-text', c).map(function (e) { return e.textContent.trim().toUpperCase(); })
+    };
+  }
+  function parseCards(root) {
+    var seen = {}, out = [];
+    $$('.movie-card, .filter-result-card', root).forEach(function (c) {
+      var it = parseCard(c);
+      if (it && !seen[it.url]) { seen[it.url] = 1; out.push(it); }
+    });
+    return out;
+  }
+
+  // "New" row: the home-page block that holds the #კინოთეატრებში link.
+  function loadNew() {
+    return getDoc('/').then(function (doc) {
+      var a = $$('a[href*="#"]', doc).filter(function (x) {
+        var h = x.getAttribute('href') || '';
+        try { h = decodeURIComponent(h); } catch (e) {}
+        return h.indexOf('#კინოთეატრებში') >= 0;
+      })[0];
+      var sec = a && (a.closest('section') || a.parentElement.parentElement);
+      sec = sec || doc.getElementById('block_cinemas');
+      return { title: sec ? (txt(sec, '.section-title') || 'კინოთეატრებში') : 'კინოთეატრებში',
+        items: sec ? parseCards(sec) : [] };
+    });
+  }
+
+  function qs(params) {
+    var s = '';
+    Object.keys(params || {}).forEach(function (k) {
+      if (params[k] !== '' && params[k] != null) s += '&' + k + '=' + encodeURIComponent(params[k]);
+    });
+    return s;
+  }
+  function listUrl(type, params, page) {
+    return '/filter-movies?type=' + type + qs(params) + (page > 1 ? '&page=' + page : '');
+  }
+  function loadList(type, params, page) {
+    return getDoc(listUrl(type, params, page)).then(function (doc) {
+      var nums = $$('.pagination a', doc).map(function (a) { return parseInt(a.textContent, 10) || 0; });
+      return { doc: doc, items: parseCards(doc.querySelector('.mlist') || doc), pages: Math.max.apply(null, [page].concat(nums)) };
+    });
+  }
+
+  function parseFilters(doc) {
+    var defs = [['genre', 'genres[]', 'ჟანრი'], ['translation', 'languages', 'გახმოვანება'],
+      ['country', 'countries', 'ქვეყანა'], ['sort', 'sort', 'სორტირება']];
+    return defs.map(function (d) {
+      var fi = doc.querySelector('.filter-dropdowns .filter-item.' + d[0]);
+      if (!fi) return null;
+      var opts = $$('input[name="' + d[1] + '"]', fi).map(function (i) {
+        return { v: i.value, t: ((i.closest('label') || {}).textContent || i.value).replace(/\s+/g, ' ').trim() };
+      }).filter(function (o) { return o.v !== ''; });
+      return opts.length ? { name: d[1], label: d[2], opts: opts } : null;
+    }).filter(Boolean);
+  }
+
+  var detCache = new Map();
+  function loadDetails(item) {
+    if (detCache.has(item.url)) return detCache.get(item.url);
+    var p = getDoc(item.url).then(function (doc) {
+      var sc = doc.querySelector('.scenere');
+      var parts = sc ? $$('.desc', sc).filter(function (d) { return !d.classList.contains('mb-2'); }) : [];
+      var plot = parts.map(function (d) { return d.textContent.replace(/\s+/g, ' ').trim(); }).join(' ');
+      if (!plot) { var m = doc.querySelector('meta[name=description]'); plot = m ? m.content : ''; }
+      var facts = {};
+      $$('.gm-watch-fact', doc).forEach(function (f) {
+        var t = f.textContent.replace(/\s+/g, ' ').trim(), i = t.indexOf(':');
+        if (i > 0) facts[t.slice(0, i).trim()] = t.slice(i + 1).trim();
+      });
+      var fr = doc.querySelector('iframe#movie_embed, iframe#serial_embed, iframe[src*="embed"]');
+      var og = doc.querySelector('meta[property="og:image"]');
+      var h1 = txt(doc, 'h1').split('•')[0].trim();
+      return { plot: plot, facts: facts, imdb: txt(doc, '.fullimdb') || item.rating,
+        embed: fr ? (fr.getAttribute('src') || fr.getAttribute('data-src')) : '',
+        bg: og ? tmdb(og.content, 'w1280') : item.bg, title: item.title || h1 };
+    });
+    detCache.set(item.url, p);
+    p.catch(function () { detCache.delete(item.url); });
+    if (detCache.size > 80) detCache.delete(detCache.keys().next().value);
+    return p;
+  }
+
+  // ======================================================= rendering
+  var items = new WeakMap();      // card element -> item
+  var app = $('#app'), pv = $('#pv'), top = $('#top'), ov = $('#ov'), det = $('#det');
+
+  function cardEl(it) {
+    var c = document.createElement('div');
+    c.className = 'card f';
+    c.innerHTML = '<div class="img">' + (it.poster ? '<img loading="lazy" decoding="async" src="' + esc(it.poster) + '" alt="">' : '') +
+      (it.eps ? '<span class="badge">' + esc(it.eps) + '</span>' : '') + '</div><div class="t">' + esc(it.title) + '</div>';
+    items.set(c, it);
+    return c;
+  }
+
+  function metaHtml(it, d) {
+    var m = [];
+    if (d && d.imdb || it.rating) m.push('<span class="imdb">IMDb ' + esc(d && d.imdb || it.rating) + '</span>');
+    if (it.year) m.push('<span>' + esc(it.year) + '</span>');
+    if (it.eps) m.push('<span>' + esc(it.eps) + '</span>');
+    if (d && d.facts['ხანგრძლივობა']) m.push('<span>' + esc(d.facts['ხანგრძლივობა']) + '</span>');
+    if (d && d.facts['ასაკობრივი შეზღუდვა']) m.push('<span>' + esc(d.facts['ასაკობრივი შეზღუდვა']) + '</span>');
+    if (it.langs && it.langs.length) m.push('<span>' + esc(it.langs.join(' · ')) + '</span>');
+    return m.join('');
+  }
+
+  // Preview area: shows the focused title, then its description a moment later.
+  var pvTimer = null, pvItem = null;
+  function showPreview(it) {
+    pvItem = it;
+    $('h1', pv).textContent = it.title;
+    $('.en', pv).textContent = it.en;
+    $('.meta', pv).innerHTML = metaHtml(it, null);
+    $('.plot', pv).textContent = '';
+    setPvBg(it.bg);
+    clearTimeout(pvTimer);
+    pvTimer = setTimeout(function () {
+      loadDetails(it).then(function (d) {
+        if (pvItem !== it || playing) return;
+        $('.meta', pv).innerHTML = metaHtml(it, d);
+        $('.plot', pv).textContent = d.plot;
+        if (d.bg && d.bg !== it.bg) setPvBg(d.bg);
+      }).catch(function () {});
+    }, 450);
+  }
+  var pvBgUrl = '';
+  function setPvBg(u) {
+    var bg = $('.bg', pv);
+    if (!u) { bg.classList.remove('on'); pvBgUrl = ''; return; }
+    if (u === pvBgUrl) return;
+    pvBgUrl = u;
+    var img = new Image();
+    img.onload = function () {
+      if (pvBgUrl !== u) return;
+      bg.style.backgroundImage = 'url("' + u + '")';
+      bg.classList.add('on');
+    };
+    bg.classList.remove('on');
+    img.src = u;
+  }
+
+  // ========================================================= screens
+  var screen = null;          // 'home' | 'browse'
+  var cur = null;             // focused element
+  var mem = {};               // remembered position per row
+  var stack = [];             // screens to return to (details)
+
+  function show(name) {
+    screen = name;
+    $$('.screen').forEach(function (s) { s.classList.toggle('on', s.id === name); });
+    $('#t-home').classList.toggle('on', name === 'home');
+    $('#t-movie').classList.toggle('on', name === 'browse' && B.type === 'movie');
+    $('#t-serial').classList.toggle('on', name === 'browse' && B.type === 'serial');
+  }
+
+  function msg(body, text, retry) {
+    body.innerHTML = '<div class="msg">' + esc(text) + '<br><span class="btn f" data-act="retry">თავიდან ცდა</span>' +
+      '<span class="btn f" data-act="site">ვებსაიტის გახსნა</span></div>';
+    $('[data-act=retry]', body).__run = retry;
+  }
+
+  // ---------- home: rows of New, Movies, Series
+  var H = { rows: [] };
+  function buildHome() {
+    var body = $('#home .body');
+    body.innerHTML = '<div class="msg">იტვირთება…</div>';
+    H.rows = [];
+    var defs = [
+      { key: 'new', load: function () { return loadNew(); } },
+      { key: 'movie', title: 'ფილმები', type: 'movie' },
+      { key: 'serial', title: 'სერიალები', type: 'serial' }
+    ];
+    return Promise.all(defs.map(function (d) {
+      if (d.load) return d.load().then(function (r) { return { key: d.key, title: r.title, items: r.items }; });
+      return loadList(d.type, {}, 1).then(function (r) {
+        return { key: d.key, title: d.title, items: r.items, type: d.type, page: 1, pages: r.pages };
+      });
+    })).then(function (rows) {
+      body.innerHTML = '';
+      rows.forEach(function (r) {
+        if (!r.items.length) return;
+        var sec = document.createElement('div');
+        sec.className = 'line row';
+        sec.innerHTML = '<h3>' + esc(r.title) + '</h3><div class="track"></div>';
+        var track = $('.track', sec);
+        r.items.forEach(function (it) { track.appendChild(cardEl(it)); });
+        r.el = sec;
+        sec.__row = r;
+        body.appendChild(sec);
+        H.rows.push(r);
+      });
+      if (!H.rows.length) throw new Error('empty');
+    }).catch(function (e) {
+      msg(body, 'ვერ ჩაიტვირთა (' + e.message + ')', buildHome);
+    });
+  }
+
+  // A row reached its end: add the next page of Movies / Series.
+  function rowMore(r) {
+    if (!r.type || r.loading || r.page >= r.pages) return;
+    r.loading = true;
+    loadList(r.type, {}, r.page + 1).then(function (res) {
+      r.page++;
+      r.pages = Math.max(r.pages, res.pages);
+      var track = $('.track', r.el);
+      res.items.forEach(function (it) { track.appendChild(cardEl(it)); });
+    }).catch(function () {}).then(function () { r.loading = false; });
+  }
+
+  // ---------- browse: Movies / Series / search results, with filters
+  var COLS = 7;
+  var B = { type: 'movie', params: {}, page: 0, pages: 1, loading: false, filters: null, q: '' };
+
+  function openBrowse(type, q) {
+    B = { type: type, params: {}, page: 0, pages: 1, loading: false, filters: B.type === type ? B.filters : null, q: q || '' };
+    if (type === 'search') B.params = { search: q };
+    show('browse');
+    renderBrowse();
+    return loadPage(true);
+  }
+
+  function renderBrowse() {
+    var body = $('#browse .body');
+    var bar = '';
+    if (B.type === 'search') {
+      bar = '<div class="line bar filters"><span class="btn" style="background:none;padding-left:0">ძებნა: <b>' + esc(B.q) + '</b></span>' +
+        '<span class="note"></span></div>';
+    } else {
+      bar = '<div class="line bar filters">' + (B.filters || []).map(function (f, i) {
+        var v = B.params[f.name], o = f.opts.filter(function (x) { return x.v === v; })[0];
+        return '<span class="btn f" data-filter="' + i + '">' + esc(f.label) + (o ? '<small>' + esc(o.t) + '</small>' : '') + '</span>';
+      }).join('') + (Object.keys(B.params).length ? '<span class="btn f" data-act="clear">გასუფთავება</span>' : '') +
+        '<span class="note"></span></div>';
+    }
+    body.innerHTML = bar + '<div class="gridwrap"><div class="msg">იტვირთება…</div></div>';
+  }
+
+  function loadPage(first) {
+    if (B.loading || (!first && B.page >= B.pages)) return Promise.resolve();
+    B.loading = true;
+    var type = B.type === 'search' ? 'search' : B.type;
+    var want = B.page + 1, token = B;
+    return loadList(type, B.params, want).then(function (res) {
+      if (token !== B) return;
+      if (first && !B.filters && B.type !== 'search') { B.filters = parseFilters(res.doc); renderBrowse(); }
+      B.page = want;
+      B.pages = res.pages;
+      var wrap = $('#browse .gridwrap');
+      if (first) wrap.innerHTML = res.items.length ? '' : '<div class="msg">ვერაფერი მოიძებნა</div>';
+      var lastLine = $$('.grid', wrap).pop();
+      res.items.forEach(function (it) {
+        if (!lastLine || lastLine.children.length >= COLS) {
+          lastLine = document.createElement('div');
+          lastLine.className = 'line grid';
+          wrap.appendChild(lastLine);
+        }
+        lastLine.appendChild(cardEl(it));
+      });
+      var note = $('#browse .note');
+      if (note) note.textContent = 'გვერდი ' + B.page + ' / ' + B.pages;
+      if (first) {
+        var c = $('#browse .card');
+        if (c) focus(c);
+      }
+    }).catch(function (e) {
+      if (token !== B) return;
+      if (first) msg($('#browse .gridwrap'), 'ვერ ჩაიტვირთა (' + e.message + ')', function () { openBrowse(B.type, B.q); });
+    }).then(function () { if (token === B) B.loading = false; });
+  }
+
+  function pickFilter(i) {
+    var f = B.filters[i], curV = B.params[f.name];
+    var list = [{ t: 'ყველა', cur: !curV, run: function () { setFilter(f.name, ''); } }].concat(f.opts.map(function (o) {
+      return { t: o.t, cur: o.v === curV, run: function () { setFilter(f.name, o.v); } };
+    }));
+    openOverlay(f.label, list);
+  }
+  function setFilter(name, v) {
+    if (name) { if (v) B.params[name] = v; else delete B.params[name]; }
+    var keepFilters = B.filters, params = B.params, type = B.type;
+    B = { type: type, params: params, page: 0, pages: 1, loading: false, filters: keepFilters, q: '' };
+    renderBrowse();
+    loadPage(true).then(function () {
+      var btn = $('#browse [data-filter]');
+      if (!$('#browse .card') && btn) focus(btn);
+    });
+  }
+
+  // ---------- details
+  var detItem = null, detData = null;
+  function openDetails(it) {
+    stack.push({ focus: cur });
+    detItem = it;
+    detData = null;
+    det.classList.add('on');
+    app.classList.add('off');
+    $('.bg', det).style.backgroundImage = it.bg ? 'url("' + it.bg + '")' : '';
+    renderDetails();
+    loadDetails(it).then(function (d) {
+      if (detItem !== it) return;
+      detData = d;
+      if (d.bg) $('.bg', det).style.backgroundImage = 'url("' + d.bg + '")';
+      renderDetails();
+    }).catch(function (e) {
+      if (detItem !== it) return;
+      $('.plot', det).textContent = 'ვერ ჩაიტვირთა (' + e.message + ')';
+    });
+  }
+  function renderDetails() {
+    var it = detItem, d = detData;
+    var facts = '';
+    if (d) ['ჟანრი', 'რეჟისორი', 'ქვეყანა', 'სტუდია'].forEach(function (k) {
+      if (d.facts[k]) facts += '<div><b>' + esc(k) + ':</b> ' + esc(d.facts[k]) + '</div>';
+    });
+    $('.txt', det).innerHTML = '<h1>' + esc(it.title) + '</h1><div class="en">' + esc(it.en) + '</div>' +
+      '<div class="meta">' + metaHtml(it, d) + '</div><div class="facts">' + facts + '</div>' +
+      '<div class="plot">' + esc(d ? d.plot : 'იტვირთება…') + '</div>' +
+      '<div class="bar"><span class="btn play f" data-act="play">▶ ყურება</span><span class="btn f" data-act="back">უკან</span></div>';
+    focus($('[data-act=play]', det));
+  }
+  function closeDetails() {
+    det.classList.remove('on');
+    app.classList.remove('off');
+    detItem = null;
+    var s = stack.pop();
+    focus(s && s.focus && s.focus.isConnected ? s.focus : firstCard());
+  }
+
+  // ---------- player: only the player runs; the interface is switched off
+  var playing = null;
+  function post(m) { try { playing.contentWindow.postMessage({ __tv: m }, '*'); } catch (e) {} }
+  function openPlayer() {
+    if (!detData || !detData.embed) { $('.plot', det).textContent = 'ვიდეო ვერ მოიძებნა.'; return; }
+    clearTimeout(pvTimer);
+    var f = document.createElement('iframe');
+    f.id = 'player';
+    f.allow = 'autoplay; encrypted-media; fullscreen';
+    f.setAttribute('allowfullscreen', '');
+    f.src = detData.embed;
+    f.addEventListener('load', function () { post({ pstart: 1 }); });
+    playing = f;
+    det.classList.remove('on');
+    app.classList.add('off');
+    document.body.appendChild(f);
+  }
+  function closePlayer() {
+    post({ pstop: 1 });
+    var f = playing;
+    playing = null;
+    try { f.src = 'about:blank'; } catch (e) {}
+    f.remove();
+    try { App && App.setFsControls && App.setFsControls(false); } catch (e) {}
+    det.classList.add('on');
+    focus($('[data-act=play]', det));
+  }
+  window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (playing && d && d.__tv && d.__tv.hello && ev.source === playing.contentWindow) post({ pstart: 1 });
+  });
+
+  // ---------- overlay list (filters)
+  var OV = null;
+  function openOverlay(title, list) {
+    var sel = 0;
+    list.forEach(function (x, i) { if (x.cur) sel = i; });
+    OV = { list: list, sel: sel, ret: cur };
+    $('h4', ov).textContent = title;
+    ov.classList.add('on');
+    renderOverlay();
+  }
+  function renderOverlay() {
+    var box = $('.items', ov);
+    box.innerHTML = OV.list.map(function (x, i) {
+      return '<div class="it' + (i === OV.sel ? ' sel' : '') + '">' + (x.cur ? '✓ ' : '') + esc(x.t) + '</div>';
+    }).join('');
+    var s = $('.sel', box);
+    if (s) box.scrollTop = s.offsetTop - box.clientHeight / 2 + s.offsetHeight / 2;
+  }
+  function closeOverlay() {
+    ov.classList.remove('on');
+    var r = OV && OV.ret;
+    OV = null;
+    if (r && r.isConnected) focus(r);
+  }
+
+  // ======================================================= navigation
+  // Each screen is a list of lines (top bar, filter bar, rows, grid lines);
+  // Up/Down move between lines, Left/Right along a line.
+  function lines() {
+    if (det.classList.contains('on')) return [{ key: 'det', els: $$('.f', det) }];
+    var out = [{ key: 'top', els: $$('.f', top) }];
+    var scr = $('#' + screen);
+    $$('.line', scr).forEach(function (l, i) {
+      var els = $$('.f', l);
+      if (!els.length) return;
+      out.push({ key: screen + i, el: l, row: l.classList.contains('row') ? l.__row : null,
+        grid: l.classList.contains('grid'), els: els });
+    });
+    return out;
+  }
+  function locate(L, el) {
+    for (var i = 0; i < L.length; i++) {
+      var j = L[i].els.indexOf(el);
+      if (j >= 0) return { li: i, ix: j };
+    }
+    return null;
+  }
+  function nearestX(els, from) {
+    if (!from) return 0;
+    var r = from.getBoundingClientRect(), cx = (r.left + r.right) / 2, best = 0, bd = Infinity;
+    els.forEach(function (e, i) {
+      var q = e.getBoundingClientRect(), d = Math.abs((q.left + q.right) / 2 - cx);
+      if (d < bd) { bd = d; best = i; }
+    });
+    return best;
+  }
+  function firstCard() { return $('#' + screen + ' .card') || $('#t-home'); }
+
+  function focus(el) {
+    if (cur) cur.classList.remove('fx');
+    cur = el;
+    if (!el) return;
+    el.classList.add('fx');
+    if (el.id === 'q' || el.closest('#top') || el.closest('#det')) return;
+    // Row: slide the track so the focused card stays near the left edge.
+    var track = el.parentElement && el.parentElement.classList.contains('track') ? el.parentElement : null;
+    if (track) {
+      var idx = Array.prototype.indexOf.call(track.children, el);
+      var step = el.offsetWidth + 18;
+      var maxX = Math.max(0, track.scrollWidth - track.parentElement.clientWidth + 96);
+      track.style.transform = 'translateX(' + (-Math.round(Math.min(maxX, Math.max(0, idx * step - step * 0.4)))) + 'px)';
+      mem[track.parentElement.__row ? track.parentElement.__row.key : ''] = idx;
+    }
+    // Page: bring the focused line to the top of the scrolling area.
+    var line = el.closest('.line'), sc = el.closest('.scroller');
+    if (line && sc) {
+      var target = line.offsetTop - (line.classList.contains('grid') ? 6 : 0);
+      if (line.classList.contains('filters')) target = 0;
+      sc.scrollTo({ top: target, behavior: 'smooth' });
+    }
+    var it = items.get(el);
+    if (it) showPreview(it);
+  }
+
+  function move(dir) {
+    var L = lines(), pos = locate(L, cur);
+    if (!pos) { focus(firstCard()); return; }
+    var line = L[pos.li];
+    if (dir === 'left' || dir === 'right') {
+      var n = pos.ix + (dir === 'right' ? 1 : -1);
+      if (line.grid && n >= line.els.length && L[pos.li + 1] && L[pos.li + 1].grid) { focus(L[pos.li + 1].els[0]); return; }
+      if (line.grid && n < 0 && L[pos.li - 1] && L[pos.li - 1].grid) { var pl = L[pos.li - 1].els; focus(pl[pl.length - 1]); return; }
+      if (n < 0 || n >= line.els.length) return;
+      focus(line.els[n]);
+      if (line.row && n >= line.els.length - 5) rowMore(line.row);
+      return;
+    }
+    var t = pos.li + (dir === 'down' ? 1 : -1);
+    if (t < 0) return;
+    if (t >= L.length) { if (screen === 'browse') loadPage(false); return; }
+    var tl = L[t], idx;
+    if (tl.row && mem[tl.row.key] != null) idx = Math.min(mem[tl.row.key], tl.els.length - 1);
+    else idx = nearestX(tl.els, cur);
+    if (cur && cur.id === 'q') cur.blur();
+    focus(tl.els[idx]);
+    if (screen === 'browse' && tl.grid && t >= L.length - 2) loadPage(false);
+  }
+
+  function activate(el) {
+    if (!el) return;
+    var it = items.get(el);
+    if (it) { openDetails(it); return; }
+    if (el.id === 'q') {
+      // Opens the TV keyboard; Enter on it runs the search.
+      var r = el.getBoundingClientRect();
+      if (App && App.tap) App.tap((r.left + r.width / 2) / innerWidth, (r.top + r.height / 2) / innerHeight);
+      else el.focus();
+      return;
+    }
+    if (el.dataset.filter != null) { pickFilter(+el.dataset.filter); return; }
+    var act = el.dataset.act;
+    if (act === 'home') { show('home'); focus(firstCard()); }
+    else if (act === 'movie' || act === 'serial') openBrowse(act);
+    else if (act === 'search') doSearch();
+    else if (act === 'clear') { B.params = {}; setFilter('', ''); }
+    else if (act === 'play') openPlayer();
+    else if (act === 'back') closeDetails();
+    else if (act === 'retry' && el.__run) el.__run();
+    else if (act === 'site') location.href = 'https://ge.movie/';
+  }
+
+  function doSearch() {
+    var q = $('#q').value.trim();
+    $('#q').blur();
+    if (!q) { focus($('#q')); return; }
+    openBrowse('search', q);
+  }
+  $('#q').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+  });
+
+  // ============================================== remote keys (from the app)
+  var lastKey = 0;
+  var UI = {
+    key: function (cmd, fullscreen, repeat) {
+      if (playing) { post({ pkey: cmd, repeat: repeat }); return; }
+      if (OV) {
+        if (cmd === 'up' && OV.sel > 0) { OV.sel--; renderOverlay(); }
+        else if (cmd === 'down' && OV.sel < OV.list.length - 1) { OV.sel++; renderOverlay(); }
+        else if (cmd === 'ok' && !repeat) { var x = OV.list[OV.sel]; closeOverlay(); x.run(); }
+        else if (cmd === 'back') closeOverlay();
+        return;
+      }
+      if (cmd === 'ok') { if (!repeat) activate(cur); return; }
+      if (cmd === 'back') { UI.back(); return; }
+      if (cmd === 'pageup' || cmd === 'pagedown') cmd = cmd === 'pageup' ? 'up' : 'down';
+      if (['up', 'down', 'left', 'right'].indexOf(cmd) < 0) return;
+      var now = Date.now();
+      if (repeat && now - lastKey < 110) return;   // holding an arrow: smooth, not frantic
+      lastKey = now;
+      move(cmd);
+    },
+    // Back: player -> details -> list/home -> top bar -> (app asks to exit)
+    back: function () {
+      if (playing) { closePlayer(); return true; }
+      if (OV) { closeOverlay(); return true; }
+      if (det.classList.contains('on')) { closeDetails(); return true; }
+      if (document.activeElement && document.activeElement.id === 'q') { $('#q').blur(); return true; }
+      if (screen === 'browse') { show('home'); focus(firstCard()); return true; }
+      if (cur && !cur.closest('#top')) { focus($('#t-home')); return true; }
+      return false;
+    }
+  };
+  window.__tvui = UI;
+  if (!window.__tv) window.__tv = { key: UI.key, back: UI.back, pageReady: function () {} };
+
+  // ============================================================== start
+  show('home');
+  focus($('#t-home'));
+  buildHome().then(function () {
+    if (cur && cur.id === 't-home' && !OV && !det.classList.contains('on')) focus(firstCard());
+  });
+})();
+</script>
+</body>
+</html>

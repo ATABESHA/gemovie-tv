@@ -1141,6 +1141,7 @@
   }, true);
 
   function back() {
+    if (window.__tvui) return !!window.__tvui.back();
     if (playerMode) { exitPlayerMode(); return true; }
     var ae = document.activeElement;
     if (editing && ae) { ae.blur(); setEditing(false); return true; }
@@ -1163,6 +1164,8 @@
   var lastMove = 0;
   function key(cmd, fullscreen, repeat) {
     if (cmd === 'info') { if (!repeat) setDiag(!diagOn); return; }
+    // The app's own TV interface (tvui.html) handles its keys itself.
+    if (window.__tvui) { window.__tvui.key(cmd, fullscreen, repeat); return; }
     if (playerMode) { postToPlayer({ pkey: cmd, repeat: repeat }); return; }
     fixViewport();
     addStyle();
@@ -1196,6 +1199,7 @@
   }
 
   function pageReady() {
+    if (window.__tvui) return;   // the app's own interface: nothing to set up
     fixViewport();
     addStyle();
     cache = null;

@@ -49,6 +49,12 @@ public class MainActivity extends Activity {
 
     // ---- Settings you may want to change -------------------------------
     static final String START_URL = "https://ge.movie/";
+    /**
+     * The app's own TV interface (assets/tvui.html). It is loaded under ge.movie's
+     * address, so it may read the site's pages, but none of the site's own scripts,
+     * ads or sliders run.
+     */
+    static final String UI_URL = "https://ge.movie/tv-app";
     /** Main-page navigation is only allowed to these domains (and their subdomains). */
     static final String[] ALLOWED_DOMAINS = {"ge.movie"};
     /** true = ask the site for its desktop layout (usually best on a TV). */
@@ -97,11 +103,7 @@ public class MainActivity extends Activity {
                 .replace("__VIEWPORT_WIDTH__", String.valueOf(VIEWPORT_WIDTH));
         setupWebView();
 
-        if (savedInstanceState != null) {
-            web.restoreState(savedInstanceState);
-        } else {
-            web.loadUrl(START_URL);
-        }
+        loadTvUi();
         web.requestFocus();
     }
 
@@ -413,11 +415,18 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void retry() {
-            ui.post(() -> web.loadUrl(lastFailedUrl != null ? lastFailedUrl : START_URL));
+            ui.post(() -> {
+                if (lastFailedUrl == null || lastFailedUrl.startsWith(UI_URL)) loadTvUi();
+                else web.loadUrl(lastFailedUrl);
+            });
         }
     }
 
     // ------------------------------------------------------------ helpers
+
+    private void loadTvUi() {
+        web.loadDataWithBaseURL(UI_URL, readAsset("tvui.html"), "text/html", "utf-8", UI_URL);
+    }
 
     private void js(String code, android.webkit.ValueCallback<String> cb) {
         web.evaluateJavascript(code, cb);
