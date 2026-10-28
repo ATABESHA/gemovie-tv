@@ -425,7 +425,22 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------ helpers
 
     private void loadTvUi() {
-        web.loadDataWithBaseURL(UI_URL, readAsset("tvui.html"), "text/html", "utf-8", UI_URL);
+        // The page runs under ge.movie's address, so the app's logo is embedded into it.
+        String html = readAsset("tvui.html")
+                .replace("__LOGO__", "data:image/png;base64," + readAssetBase64("logo.png"));
+        web.loadDataWithBaseURL(UI_URL, html, "text/html", "utf-8", UI_URL);
+    }
+
+    private String readAssetBase64(String name) {
+        try (InputStream in = getAssets().open(name)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            return android.util.Base64.encodeToString(out.toByteArray(), android.util.Base64.NO_WRAP);
+        } catch (IOException e) {
+            return "";
+        }
     }
 
     private void js(String code, android.webkit.ValueCallback<String> cb) {

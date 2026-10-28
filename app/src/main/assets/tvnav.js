@@ -97,6 +97,9 @@
   ['playing', 'pause', 'ended'].forEach(function (t) {
     document.addEventListener(t, reportPlaying, true);
   });
+  ['pause', 'ended'].forEach(function (t) {
+    document.addEventListener(t, function () { if (PL.started) reportProgress(); }, true);
+  });
 
   function fsEl() {
     return document.fullscreenElement || document.webkitFullscreenElement || null;
@@ -313,29 +316,29 @@
     var st = document.createElement('style');
     st.id = '__tvpstyle';
     st.textContent =
-      '#__tvpanel{position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:140px 56px 44px;' +
+      '#__tvpanel{position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:100px 40px 28px;' +
       'background:linear-gradient(to bottom,rgba(0,0,0,0),rgba(0,0,0,.85) 45%,rgba(0,0,0,.96));' +
       'color:#fff;font-family:sans-serif;pointer-events:none;box-sizing:border-box}' +
-      '#__tvpanel .tvp-time{display:flex;align-items:center;gap:18px;font:600 20px sans-serif;margin-bottom:22px}' +
-      '#__tvpanel .tvp-bar{flex:1;height:6px;background:rgba(255,255,255,.25);border-radius:3px;overflow:hidden}' +
+      '#__tvpanel .tvp-time{display:flex;align-items:center;gap:14px;font:600 15px sans-serif;margin-bottom:14px}' +
+      '#__tvpanel .tvp-bar{flex:1;height:4px;background:rgba(255,255,255,.25);border-radius:3px;overflow:hidden}' +
       '#__tvpanel .tvp-bar i{display:block;height:100%;background:#e50914}' +
-      '#__tvpanel .tvp-tiles{display:flex;gap:14px}' +
-      '#__tvpanel .tvp-tile{background:rgba(255,255,255,.12);border-radius:12px;padding:12px 20px;' +
-      'min-width:96px;transition:transform .12s,background .12s}' +
-      '#__tvpanel .tvp-tile b{display:block;font-size:20px;font-weight:700;white-space:nowrap}' +
-      '#__tvpanel .tvp-tile span{display:block;font-size:15px;opacity:.8;margin-top:4px;white-space:nowrap;' +
-      'max-width:230px;overflow:hidden;text-overflow:ellipsis}' +
+      '#__tvpanel .tvp-tiles{display:flex;gap:9px}' +
+      '#__tvpanel .tvp-tile{background:rgba(255,255,255,.12);border-radius:9px;padding:8px 13px;' +
+      'min-width:64px;transition:transform .12s,background .12s}' +
+      '#__tvpanel .tvp-tile b{display:block;font-size:14px;font-weight:700;white-space:nowrap}' +
+      '#__tvpanel .tvp-tile span{display:block;font-size:11px;opacity:.8;margin-top:3px;white-space:nowrap;' +
+      'max-width:160px;overflow:hidden;text-overflow:ellipsis}' +
       '#__tvpanel .tvp-tile.on{background:rgba(255,255,255,.24)}' +
       '#__tvpanel .tvp-tile.sel{background:#e50914;transform:scale(1.06)}' +
-      '#__tvpanel .tvp-list{position:absolute;min-width:260px;max-height:58vh;overflow:hidden;' +
-      'background:rgba(22,22,22,.97);border-radius:12px;padding:8px 0;box-shadow:0 10px 40px rgba(0,0,0,.6)}' +
-      '#__tvpanel .tvp-lt{font-size:15px;opacity:.6;padding:6px 22px 10px}' +
-      '#__tvpanel .tvp-it{font-size:20px;padding:11px 22px;white-space:nowrap}' +
+      '#__tvpanel .tvp-list{position:absolute;min-width:180px;max-height:58vh;overflow:hidden;' +
+      'background:rgba(22,22,22,.97);border-radius:9px;padding:6px 0;box-shadow:0 10px 40px rgba(0,0,0,.6)}' +
+      '#__tvpanel .tvp-lt{font-size:12px;opacity:.6;padding:4px 16px 7px}' +
+      '#__tvpanel .tvp-it{font-size:15px;padding:8px 16px;white-space:nowrap}' +
       '#__tvpanel .tvp-it.sel{background:#fff;color:#000}' +
-      '#__tvbar{position:fixed;left:56px;right:56px;bottom:40px;z-index:2147483647;color:#fff;' +
-      'font:600 22px sans-serif;text-shadow:0 1px 4px #000;pointer-events:none;transition:opacity .3s}' +
-      '#__tvbar .tvb-top{display:flex;justify-content:space-between;margin-bottom:10px}' +
-      '#__tvbar .tvb-line{height:6px;background:rgba(255,255,255,.3);border-radius:3px;overflow:hidden}' +
+      '#__tvbar{position:fixed;left:40px;right:40px;bottom:28px;z-index:2147483647;color:#fff;' +
+      'font:600 16px sans-serif;text-shadow:0 1px 4px #000;pointer-events:none;transition:opacity .3s}' +
+      '#__tvbar .tvb-top{display:flex;justify-content:space-between;margin-bottom:7px}' +
+      '#__tvbar .tvb-line{height:4px;background:rgba(255,255,255,.3);border-radius:3px;overflow:hidden}' +
       '#__tvbar .tvb-line i{display:block;height:100%;background:#e50914}';
     document.head.appendChild(st);
   }
@@ -409,7 +412,7 @@
     if (PL.list) {
       var tileEl = el.querySelectorAll('.tvp-tile')[PL.tile];
       var lst = el.querySelector('.tvp-list');
-      lst.style.bottom = (el.clientHeight - tileEl.offsetTop + 14) + 'px';
+      lst.style.bottom = (el.clientHeight - tileEl.offsetTop + 10) + 'px';
       lst.style.left = Math.max(20, Math.min(tileEl.offsetLeft, el.clientWidth - lst.offsetWidth - 20)) + 'px';
       var s = lst.querySelector('.sel');
       if (s) lst.scrollTop = s.offsetTop - lst.clientHeight / 2 + s.offsetHeight / 2;
@@ -499,18 +502,41 @@
     return true;
   }
 
+  // Tell the app where we are (for Continue Watching): every 15 s and when stopping.
+  var progTimer = null;
+  function reportProgress() {
+    var t = +api('time') || 0, d = +api('duration') || 0;
+    if (!d || !pjs()) return;
+    try { window.top.postMessage({ __tv: { progress: { t: t, d: d, ep: api('playlist_id') || '' } } }, '*'); } catch (e) {}
+  }
+
   // Start playing with the remembered choices (quality 1080p unless you picked another).
-  function playerStart() {
+  // resume = { t: seconds, ep: '1-3' } continues where you stopped.
+  function playerStart(resume) {
     if (PL.started) return;
     PL.started = true;
     var tries = 0;
     (function wait() {
       if (!PL.started) return;
       if (!pjs()) { if (++tries < 60) setTimeout(wait, 300); else PL.started = false; return; }
-      api('play');
+      var switchEp = resume && resume.ep && api('playlist_id') !== resume.ep;
+      if (switchEp) api('play', 'id:' + resume.ep); else api('play');
       loadPlaylist();
       applyPrefs();
+      if (resume && resume.t > 5) seekWhenReady(resume.t, switchEp ? 1500 : 0);
+      clearInterval(progTimer);
+      progTimer = setInterval(function () { if (api('playing')) reportProgress(); }, 15000);
     })();
+  }
+
+  function seekWhenReady(t, delay) {
+    var n = 0;
+    setTimeout(function attempt() {
+      var d = +api('duration') || 0;
+      if (!d) { if (++n < 40) setTimeout(attempt, 500); return; }
+      api('seek', Math.min(t, d - 5));
+      showBar('\u25B6 ' + fmt(t));
+    }, delay || 0);
   }
 
   function applyPrefs() {
@@ -532,6 +558,8 @@
   }
 
   function playerStop() {
+    reportProgress();
+    clearInterval(progTimer);
     PL.started = false;
     closePanel();
     hideBar();
@@ -1049,7 +1077,7 @@
     if (m.media) media(m.media, m.arg);
     else if (m.fskey) fsKey(m.fskey, m.repeat);
     else if (m.pkey) { if (!playerKey(m.pkey, m.repeat)) sendToFrames(m); }
-    else if (m.pstart) { playerStart(); sendToFrames(m); }
+    else if (m.pstart) { playerStart(m.resume); sendToFrames(m); }
     else if (m.pstop) { playerStop(); sendToFrames(m); }
     else if (m.diag !== undefined) setDiag(m.diag);
     else if (m.hello && TOP) onFrameHello(ev.source);

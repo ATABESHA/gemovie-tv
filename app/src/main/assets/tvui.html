@@ -15,11 +15,13 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 /* ---------- top bar */
 #top{position:absolute;left:0;right:0;top:0;height:76px;display:flex;align-items:center;gap:10px;
   padding:0 48px;z-index:5;background:linear-gradient(#0b0c10 55%,rgba(11,12,16,0))}
-#top .logo{padding:8px 10px;border-radius:10px;margin-right:18px}
-#top .logo img{height:22px;display:block}
-#top .tab{font-size:19px;padding:9px 20px;border-radius:24px;color:var(--dim)}
+#top .logo{display:flex;align-items:center;gap:10px;padding:4px 14px 4px 4px;border-radius:26px;margin-right:14px}
+#top .logo img{height:44px;width:44px;border-radius:12px;display:block}
+#top .logo span{font-size:18px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
+#top .logo span i{font-style:normal;color:#c8afff}
+#top .tab{font-size:18px;padding:9px 16px;border-radius:24px;color:var(--dim)}
 #top .tab.on{color:#fff;background:rgba(255,255,255,.12)}
-#q{margin-left:auto;width:360px;height:46px;border-radius:24px;border:0;padding:0 22px;
+#q{margin-left:auto;width:250px;height:46px;border-radius:24px;border:0;padding:0 22px;
   font:17px "Noto Sans Georgian",sans-serif;background:rgba(255,255,255,.12);color:#fff;outline:none}
 #q::placeholder{color:var(--dim)}
 #go{height:46px;padding:0 24px;border-radius:24px;background:rgba(255,255,255,.12);font-size:17px;
@@ -50,17 +52,19 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 .scroller{position:absolute;left:0;right:0;top:330px;bottom:0;overflow:hidden}
 .screen.full .scroller{top:76px}
 .line{padding:0 48px}
-.row h3{margin:6px 0 2px;font-size:20px;font-weight:600}
-.track{display:flex;gap:18px;padding:14px 0 18px;transition:transform .25s ease;will-change:transform}
-.card{flex:0 0 150px;width:150px}
-.card .img{width:150px;height:225px;border-radius:10px;background:#22232a center/cover no-repeat;position:relative;
+.row h3{margin:4px 0 0;font-size:18px;font-weight:600}
+.track{display:flex;gap:14px;padding:12px 0 14px;transition:transform .25s ease;will-change:transform}
+.card{flex:0 0 105px;width:105px}
+.card .img{width:105px;height:158px;border-radius:8px;background:#22232a center/cover no-repeat;position:relative;
   transition:transform .15s ease}
-.card .img img{width:100%;height:100%;object-fit:cover;border-radius:10px;display:block}
-.card .badge{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.75);font-size:12px;padding:2px 7px;border-radius:5px}
-.card .t{margin-top:8px;font-size:14px;line-height:1.3;height:36px;overflow:hidden;color:#ccc}
-.card.fx .img{transform:scale(1.08);box-shadow:0 0 0 4px var(--red),0 12px 30px rgba(0,0,0,.7)}
+.card .img img{width:100%;height:100%;object-fit:cover;border-radius:8px;display:block}
+.card .prog{position:absolute;left:6px;right:6px;bottom:6px;height:4px;border-radius:2px;background:rgba(255,255,255,.35);overflow:hidden}
+.card .prog i{display:block;height:100%;background:var(--red)}
+.card .badge{position:absolute;left:4px;top:4px;background:rgba(0,0,0,.75);font-size:10px;padding:1px 5px;border-radius:4px}
+.card .t{margin-top:6px;font-size:12px;line-height:1.3;height:31px;overflow:hidden;color:#ccc}
+.card.fx .img{transform:scale(1.08);box-shadow:0 0 0 3px var(--red),0 12px 30px rgba(0,0,0,.7)}
 .card.fx .t{color:#fff}
-.grid{display:flex;gap:18px;padding:12px 48px 8px}
+.grid{display:flex;gap:14px;padding:10px 48px 6px}
 .bar{display:flex;gap:12px;align-items:center;padding-top:4px;padding-bottom:10px}
 .btn{font-size:17px;padding:10px 20px;border-radius:24px;background:rgba(255,255,255,.12);white-space:nowrap}
 .btn small{color:var(--dim);margin-left:6px}
@@ -113,10 +117,11 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   <section id="browse" class="screen"><div class="scroller"><div class="body"></div></div></section>
 
   <div id="top">
-    <div class="logo f" data-act="home"><img src="/img/logo.png" alt="GE.MOVIE"></div>
+    <div class="logo f" data-act="home"><img src="__LOGO__" alt=""><span>GE <i>MOVIE</i></span></div>
     <div class="tab f" data-act="home" id="t-home">მთავარი</div>
     <div class="tab f" data-act="movie" id="t-movie">ფილმები</div>
     <div class="tab f" data-act="serial" id="t-serial">სერიალები</div>
+    <div class="tab f" data-act="cw" id="t-cw">განაგრძე ყურება</div>
     <input id="q" class="f" type="text" placeholder="მოძებნე ფილმები, სერიალები..." autocomplete="off">
     <div id="go" class="f" data-act="search">ძებნა</div>
   </div>
@@ -257,11 +262,15 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   var items = new WeakMap();      // card element -> item
   var app = $('#app'), pv = $('#pv'), top = $('#top'), ov = $('#ov'), det = $('#det');
 
-  function cardEl(it) {
+  function cardEl(it, cw) {
     var c = document.createElement('div');
     c.className = 'card f';
+    var pct = cw && cw.d ? Math.min(100, Math.round(cw.t * 100 / cw.d)) : 0;
+    var badge = cw && cw.ep ? epLabel(cw.ep) : it.eps;
     c.innerHTML = '<div class="img">' + (it.poster ? '<img loading="lazy" decoding="async" src="' + esc(it.poster) + '" alt="">' : '') +
-      (it.eps ? '<span class="badge">' + esc(it.eps) + '</span>' : '') + '</div><div class="t">' + esc(it.title) + '</div>';
+      (badge ? '<span class="badge">' + esc(badge) + '</span>' : '') +
+      (pct ? '<span class="prog"><i style="width:' + pct + '%"></i></span>' : '') +
+      '</div><div class="t">' + esc(it.title) + '</div>';
     items.set(c, it);
     return c;
   }
@@ -312,6 +321,51 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     img.src = u;
   }
 
+  // ================================================= continue watching
+  // Kept on this TV only (the app's own storage), newest first.
+  var CW_KEY = 'tv_continue';
+  function cwAll() { try { return JSON.parse(localStorage.getItem(CW_KEY) || '[]'); } catch (e) { return []; } }
+  function cwSave(list) { try { localStorage.setItem(CW_KEY, JSON.stringify(list.slice(0, 40))); } catch (e) {} }
+  function cwGet(url) { return cwAll().filter(function (x) { return x.url === url; })[0] || null; }
+  function cwForget(url) { cwSave(cwAll().filter(function (x) { return x.url !== url; })); }
+  function cwUpdate(it, p) {
+    if (!it || !p || !(p.d > 0)) return;
+    var list = cwAll().filter(function (x) { return x.url !== it.url; });
+    var done = p.t / p.d > 0.95;
+    if (done && !it.serial) { cwSave(list); return; }          // finished movie: drop it
+    list.unshift({ url: it.url, t: done ? 0 : Math.floor(p.t), d: Math.floor(p.d), ep: it.serial ? (p.ep || '') : '', at: Date.now(),
+      item: { url: it.url, serial: it.serial, title: it.title, en: it.en, poster: it.poster, bg: it.bg,
+        rating: it.rating, year: it.year, langs: it.langs, eps: '' } });
+    cwSave(list);
+  }
+  function epLabel(ep) {
+    var m = /^(\d+)-(\d+)$/.exec(ep || '');
+    return m ? 'S' + m[1] + ' · E' + m[2] : '';
+  }
+  function fmtTime(sec) {
+    sec = Math.max(0, Math.floor(sec || 0));
+    var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), x = sec % 60;
+    return (h ? h + ':' + (m < 10 ? '0' : '') + m : m) + ':' + (x < 10 ? '0' : '') + x;
+  }
+
+  // Home row "განაგრძე ყურება" (first row when there is something to continue).
+  function renderCwRow() {
+    var body = $('#home .body');
+    if (!body) return;
+    var old = $('.row.cw', body), list = cwAll();
+    if (!list.length) { if (old) old.remove(); return; }
+    var sec = document.createElement('div');
+    sec.className = 'line row cw';
+    sec.innerHTML = '<h3>განაგრძე ყურება</h3><div class="track"></div>';
+    var track = $('.track', sec);
+    var r = { key: 'cw', items: list.map(function (x) { return x.item; }) };
+    list.forEach(function (x) { track.appendChild(cardEl(x.item, x)); });
+    r.el = sec;
+    sec.__row = r;
+    delete mem.cw;
+    if (old) body.replaceChild(sec, old); else body.insertBefore(sec, body.firstChild);
+  }
+
   // ========================================================= screens
   var screen = null;          // 'home' | 'browse'
   var cur = null;             // focused element
@@ -324,6 +378,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     $('#t-home').classList.toggle('on', name === 'home');
     $('#t-movie').classList.toggle('on', name === 'browse' && B.type === 'movie');
     $('#t-serial').classList.toggle('on', name === 'browse' && B.type === 'serial');
+    $('#t-cw').classList.toggle('on', name === 'browse' && B.type === 'cw');
   }
 
   function msg(body, text, retry) {
@@ -363,6 +418,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
         H.rows.push(r);
       });
       if (!H.rows.length) throw new Error('empty');
+      renderCwRow();
     }).catch(function (e) {
       msg(body, 'ვერ ჩაიტვირთა (' + e.message + ')', buildHome);
     });
@@ -381,7 +437,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   }
 
   // ---------- browse: Movies / Series / search results, with filters
-  var COLS = 7;
+  var COLS = 10;
   var B = { type: 'movie', params: {}, page: 0, pages: 1, loading: false, filters: null, q: '' };
 
   function openBrowse(type, q) {
@@ -398,6 +454,9 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     if (B.type === 'search') {
       bar = '<div class="line bar filters"><span class="btn" style="background:none;padding-left:0">ძებნა: <b>' + esc(B.q) + '</b></span>' +
         '<span class="note"></span></div>';
+    } else if (B.type === 'cw') {
+      bar = '<div class="line bar filters"><span class="btn" style="background:none;padding-left:0"><b>განაგრძე ყურება</b></span>' +
+        '<span class="note"></span></div>';
     } else {
       bar = '<div class="line bar filters">' + (B.filters || []).map(function (f, i) {
         var v = B.params[f.name], o = f.opts.filter(function (x) { return x.v === v; })[0];
@@ -409,6 +468,24 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   }
 
   function loadPage(first) {
+    if (B.type === 'cw') {
+      if (!first) return Promise.resolve();
+      var wrap = $('#browse .gridwrap'), list = cwAll(), line = null;
+      wrap.innerHTML = list.length ? '' : '<div class="msg">ჯერ არაფერი გიყურებიათ. დაიწყე ფილმი და აქ გამოჩნდება.</div>';
+      list.forEach(function (x) {
+        if (!line || line.children.length >= COLS) {
+          line = document.createElement('div');
+          line.className = 'line grid';
+          wrap.appendChild(line);
+        }
+        line.appendChild(cardEl(x.item, x));
+      });
+      $('#browse .note').textContent = list.length ? list.length + ' სათაური' : '';
+      B.page = B.pages = 1;
+      var c = $('#browse .card');
+      focus(c || $('#t-cw'));
+      return Promise.resolve();
+    }
     if (B.loading || (!first && B.page >= B.pages)) return Promise.resolve();
     B.loading = true;
     var type = B.type === 'search' ? 'search' : B.type;
@@ -488,10 +565,26 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     $('.txt', det).innerHTML = '<h1>' + esc(it.title) + '</h1><div class="en">' + esc(it.en) + '</div>' +
       '<div class="meta">' + metaHtml(it, d) + '</div><div class="facts">' + facts + '</div>' +
       '<div class="plot">' + esc(d ? d.plot : 'იტვირთება…') + '</div>' +
-      '<div class="bar"><span class="btn play f" data-act="play">▶ ყურება</span><span class="btn f" data-act="back">უკან</span></div>';
-    focus($('[data-act=play]', det));
+      detButtons(it);
+    focus($('[data-act=resume]', det) || $('[data-act=play]', det));
+  }
+  function detButtons(it) {
+    var cw = cwGet(it.url);
+    if (cw && (cw.t > 30 || cw.ep)) {
+      var where = [epLabel(cw.ep), cw.t > 30 ? fmtTime(cw.t) : ''].filter(Boolean).join(' · ');
+      return '<div class="bar"><span class="btn play f" data-act="resume">▶ გაგრძელება <small>' + esc(where) + '</small></span>' +
+        '<span class="btn f" data-act="play">↺ თავიდან</span>' +
+        '<span class="btn f" data-act="forget">სიიდან წაშლა</span>' +
+        '<span class="btn f" data-act="back">უკან</span></div>';
+    }
+    return '<div class="bar"><span class="btn play f" data-act="play">▶ ყურება</span><span class="btn f" data-act="back">უკან</span></div>';
   }
   function closeDetails() {
+    renderCwRow();
+    if (screen === 'browse' && B.type === 'cw') { closeDetailsTo(); loadPage(true); return; }
+    closeDetailsTo();
+  }
+  function closeDetailsTo() {
     det.classList.remove('on');
     app.classList.remove('off');
     detItem = null;
@@ -500,9 +593,10 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   }
 
   // ---------- player: only the player runs; the interface is switched off
-  var playing = null;
+  var playing = null, playingItem = null, playerWin = null, startMsg = null;
   function post(m) { try { playing.contentWindow.postMessage({ __tv: m }, '*'); } catch (e) {} }
-  function openPlayer() {
+  // resume: { t: seconds, ep: '1-3' } from Continue Watching, or nothing to start from the beginning
+  function openPlayer(resume) {
     if (!detData || !detData.embed) { $('.plot', det).textContent = 'ვიდეო ვერ მოიძებნა.'; return; }
     clearTimeout(pvTimer);
     var f = document.createElement('iframe');
@@ -510,25 +604,36 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     f.allow = 'autoplay; encrypted-media; fullscreen';
     f.setAttribute('allowfullscreen', '');
     f.src = detData.embed;
-    f.addEventListener('load', function () { post({ pstart: 1 }); });
+    startMsg = { pstart: 1, resume: resume ? { t: resume.t || 0, ep: resume.ep || '' } : null };
+    f.addEventListener('load', function () { post(startMsg); });
     playing = f;
+    playingItem = detItem;
     det.classList.remove('on');
     app.classList.add('off');
     document.body.appendChild(f);
+    playerWin = f.contentWindow;
   }
   function closePlayer() {
-    post({ pstop: 1 });
+    post({ pstop: 1 });                     // the player reports its last position first
     var f = playing;
     playing = null;
-    try { f.src = 'about:blank'; } catch (e) {}
-    f.remove();
+    f.style.visibility = 'hidden';
+    setTimeout(function () {
+      try { f.src = 'about:blank'; } catch (e) {}
+      f.remove();
+      playerWin = null;
+      if (detItem) $('.txt .bar', det).outerHTML = detButtons(detItem);
+      if (det.classList.contains('on')) focus($('[data-act=resume]', det) || $('[data-act=play]', det));
+    }, 500);
     try { App && App.setFsControls && App.setFsControls(false); } catch (e) {}
     det.classList.add('on');
     focus($('[data-act=play]', det));
   }
   window.addEventListener('message', function (ev) {
     var d = ev.data;
-    if (playing && d && d.__tv && d.__tv.hello && ev.source === playing.contentWindow) post({ pstart: 1 });
+    if (!d || !d.__tv) return;
+    if (playing && d.__tv.hello && ev.source === playing.contentWindow) post(startMsg);
+    if (d.__tv.progress && playerWin && ev.source === playerWin) cwUpdate(playingItem, d.__tv.progress);
   });
 
   // ---------- overlay list (filters)
@@ -599,7 +704,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     var track = el.parentElement && el.parentElement.classList.contains('track') ? el.parentElement : null;
     if (track) {
       var idx = Array.prototype.indexOf.call(track.children, el);
-      var step = el.offsetWidth + 18;
+      var step = el.offsetWidth + 14;
       var maxX = Math.max(0, track.scrollWidth - track.parentElement.clientWidth + 96);
       track.style.transform = 'translateX(' + (-Math.round(Math.min(maxX, Math.max(0, idx * step - step * 0.4)))) + 'px)';
       mem[track.parentElement.__row ? track.parentElement.__row.key : ''] = idx;
@@ -653,10 +758,12 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     if (el.dataset.filter != null) { pickFilter(+el.dataset.filter); return; }
     var act = el.dataset.act;
     if (act === 'home') { show('home'); focus(firstCard()); }
-    else if (act === 'movie' || act === 'serial') openBrowse(act);
+    else if (act === 'movie' || act === 'serial' || act === 'cw') openBrowse(act);
     else if (act === 'search') doSearch();
     else if (act === 'clear') { B.params = {}; setFilter('', ''); }
-    else if (act === 'play') openPlayer();
+    else if (act === 'play') openPlayer(null);
+    else if (act === 'resume') openPlayer(cwGet(detItem.url));
+    else if (act === 'forget') { cwForget(detItem.url); $('.txt .bar', det).outerHTML = detButtons(detItem); focus($('[data-act=play]', det)); }
     else if (act === 'back') closeDetails();
     else if (act === 'retry' && el.__run) el.__run();
     else if (act === 'site') location.href = 'https://ge.movie/';
