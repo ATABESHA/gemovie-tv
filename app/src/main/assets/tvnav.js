@@ -258,18 +258,18 @@
       var cq = api('quality');
       t.push({ name: 'ხარისხი', value: cq || '', list: function () {
         return q.map(function (x, i) {
-          return { label: x, cur: x === cq, run: function () { api('quality', i); pref('q', x); } };
+          return { label: x, cur: x === cq, run: function () { api('quality', i); } };
         }).reverse();
       } });
     }
 
     var su = arr(api('subtitles'));
     if (su.length) {
-      var cs = api('subtitle'), on = su.indexOf(cs) >= 0;
+      var cs = SUB.label || api('subtitle'), on = su.indexOf(cs) >= 0;
       t.push({ name: 'სუბტიტრები', value: on ? cs : 'გამორთული', list: function () {
-        return [{ label: 'გამორთული', cur: !on, run: function () { api('subtitle', -1); pref('s', ''); } }]
-          .concat(su.map(function (x, i) {
-            return { label: x, cur: x === cs, run: function () { api('subtitle', i); pref('s', x); } };
+        return [{ label: 'გამორთული', cur: !on, run: function () { setSub(''); } }]
+          .concat(su.map(function (x) {
+            return { label: x, cur: x === cs, run: function () { setSub(x); } };
           }));
       } });
     }
@@ -377,8 +377,16 @@
     clearTimeout(seekTimer);
     seekTimer = setTimeout(function () { api('seek', seekTarget); seekTarget = null; }, 450);
   }
+  // Holding an arrow: one jump every 250 ms; 10 s jumps, 20 s after ~3 s, 30 s after ~8 s.
+  var lastSeekKey = 0;
   function seekStep(repeat) {
-    return repeat >= 10 ? 60 : repeat >= 3 ? 30 : 10;
+    return repeat >= 30 ? 30 : repeat >= 12 ? 20 : 10;
+  }
+  function seekKey(dir, repeat) {
+    var now = Date.now();
+    if (repeat && now - lastSeekKey < 250) return;
+    lastSeekKey = now;
+    seekBy(dir * seekStep(repeat));
   }
 
   function renderPanel() {
@@ -492,8 +500,8 @@
       return true;
     }
     switch (cmd) {
-      case 'left': case 'rw': seekBy(-seekStep(repeat)); break;
-      case 'right': case 'ff': seekBy(seekStep(repeat)); break;
+      case 'left': case 'rw': seekKey(-1, repeat); break;
+      case 'right': case 'ff': seekKey(1, repeat); break;
       case 'ok': case 'playpause': if (!repeat) togglePlay(); break;
       case 'play': api('play'); showBar('▶'); break;
       case 'pause': case 'stop': api('pause'); showBar('❚❚'); break;
@@ -523,6 +531,7 @@
       if (switchEp) api('play', 'id:' + resume.ep); else api('play');
       loadPlaylist();
       applyPrefs();
+      cleanWhenReady();
       if (resume && resume.t > 5) seekWhenReady(resume.t, switchEp ? 1500 : 0);
       clearInterval(progTimer);
       progTimer = setInterval(function () { if (api('playing')) reportProgress(); }, 15000);
@@ -544,18 +553,140 @@
     (function attempt() {
       var q = arr(api('qualities'));
       if (!q.length || !(+api('duration'))) { if (++n < 40) setTimeout(attempt, 500); return; }
-      var want = pref('q') || '1080p', qi = q.indexOf(want);
-      if (qi < 0) {
-        var bh = 0;
-        q.forEach(function (x, j) { var h = parseInt(x, 10); if (h <= 1080 && h > bh) { bh = h; qi = j; } });
-      }
+      var qi = -1, bh = 0;            // always the highest quality on offer
+      q.forEach(function (x, j) { var h = parseInt(x, 10) || 0; if (h >= bh) { bh = h; qi = j; } });
       if (qi >= 0 && api('quality') !== q[qi]) api('quality', qi);
       var a = pref('a'), ai = a ? arr(api('audiotracks')).indexOf(a) : -1;
       if (ai >= 0 && api('audiotrack') !== a) setTimeout(function () { setAudio(ai, a); }, 1500);
-      var s = pref('s'), si = s ? arr(api('subtitles')).indexOf(s) : -1;
-      if (si >= 0) api('subtitle', si);
+      var s = pref('s');
+      if (s && arr(api('subtitles')).indexOf(s) >= 0) setSub(s);
     })();
   }
+
+  // ------------------------------------------------ clean player screen
+  // Hide the player's own buttons (play/next bar, season/episode menus, big play icon):
+  // only the video stays; the app's panel, time bar and subtitles show on top.
+  function cleanPlayer(on) {
+    var v = document.querySelector('video');
+    var root = v && (v.closest('[id^="oframe"]') || v.closest('pjsdiv') && v.closest('#player'));
+    if (!root) return false;
+    if (!byId('__tvclean')) {
+      var st = document.createElement('style');
+      st.id = '__tvclean';
+      st.textContent =
+        'html.__tvclean [data-tvroot] *{visibility:hidden!important;cursor:none!important}' +
+        'html.__tvclean [data-tvroot] video{visibility:visible!important}' +
+        '#__tvsub{position:fixed;left:6%;right:6%;bottom:7%;z-index:2147483646;text-align:center;' +
+        'pointer-events:none;font:600 30px/1.3 sans-serif;color:#fff;text-shadow:0 2px 4px #000,0 0 2px #000}' +
+        '#__tvsub span{background:rgba(0,0,0,.45);padding:2px 10px;border-radius:6px;' +
+        '-webkit-box-decoration-break:clone;box-decoration-break:clone}' +
+        '#__tvwait{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483646;' +
+        'width:56px;height:56px;border-radius:50%;border:5px solid rgba(255,255,255,.25);' +
+        'border-top-color:#fff;animation:__tvspin .9s linear infinite;display:none;pointer-events:none}' +
+        '@keyframes __tvspin{to{transform:translate(-50%,-50%) rotate(360deg)}}';
+      document.head.appendChild(st);
+    }
+    root.setAttribute('data-tvroot', '1');
+    document.documentElement.classList.toggle('__tvclean', !!on);
+    return true;
+  }
+  function cleanWhenReady() {
+    var n = 0;
+    (function attempt() { if (!cleanPlayer(true) && ++n < 40) setTimeout(attempt, 500); })();
+  }
+
+  // Our own loading spinner (the player's is hidden with the rest of its UI).
+  function waitSpinner(on) {
+    if (!document.documentElement.classList.contains('__tvclean')) return;
+    var el = byId('__tvwait');
+    if (!el && on) { el = document.createElement('div'); el.id = '__tvwait'; document.body.appendChild(el); }
+    if (el) el.style.display = on ? 'block' : 'none';
+  }
+  document.addEventListener('waiting', function () { waitSpinner(true); }, true);
+  ['playing', 'canplay', 'pause', 'seeked'].forEach(function (t) {
+    document.addEventListener(t, function () { waitSpinner(false); }, true);
+  });
+
+  // Subtitles: read the .vtt file the player would use and show the lines ourselves.
+  var SUB = { label: '', cues: null, i: 0, ep: '' };
+  function playlistItem() {
+    if (!PL.plist) return null;
+    var id = api('playlist_id'), flat = [];
+    PL.plist.forEach(function (x) { if (x && Array.isArray(x.folder)) flat = flat.concat(x.folder); else if (x) flat.push(x); });
+    for (var i = 0; i < flat.length; i++) if (flat[i].id === id) return flat[i];
+    return flat.length === 1 || !id ? flat[0] : null;
+  }
+  function subUrl(label) {
+    var it = playlistItem(), list = it && it.subtitle ? String(it.subtitle).split(',') : [];
+    for (var i = 0; i < list.length; i++) {
+      var m = /^\s*\[([^\]]+)\](.+)$/.exec(list[i]);
+      if (m && m[1] === label) return m[2].trim();
+    }
+    return '';
+  }
+  function parseVtt(text) {
+    var cues = [], ts = function (x) {
+      var p = x.trim().replace(',', '.').split(':'), s = 0;
+      for (var i = 0; i < p.length; i++) s = s * 60 + parseFloat(p[i]);
+      return s;
+    };
+    text.replace(/\r/g, '').split(/\n\n+/).forEach(function (block) {
+      var lines = block.split('\n'), k = 0;
+      while (k < lines.length && lines[k].indexOf('-->') < 0) k++;
+      if (k >= lines.length) return;
+      var t = lines[k].split('-->');
+      var body = lines.slice(k + 1).join('\n').replace(/<[^>]+>/g, '').trim();
+      if (body) cues.push({ a: ts(t[0]), b: ts(t[1].trim().split(/\s+/)[0]), t: body });
+    });
+    return cues;
+  }
+  function setSub(label, tries) {
+    // The subtitle files are listed in the player's playlist: wait for it (up to ~8 s).
+    if (label && !PL.plist && (tries || 0) < 25) {
+      loadPlaylist();
+      setTimeout(function () { setSub(label, (tries || 0) + 1); }, 300);
+      return;
+    }
+    pref('s', label || '');
+    SUB.label = label || '';
+    SUB.cues = null;
+    showSub('');
+    api('subtitle', -1);                                  // the player's own subtitles stay off
+    if (!label) return;
+    var url = subUrl(label);
+    if (!url) {                                           // unknown file: let the player show them
+      var i = arr(api('subtitles')).indexOf(label);
+      if (i >= 0) { api('subtitle', i); cleanPlayer(false); }
+      return;
+    }
+    SUB.ep = api('playlist_id') || '';
+    fetch(url).then(function (r) { return r.text(); }).then(function (txt) {
+      if (SUB.label !== label) return;
+      SUB.cues = parseVtt(txt);
+      SUB.i = 0;
+    }).catch(function () {
+      var i = arr(api('subtitles')).indexOf(label);
+      if (i >= 0 && SUB.label === label) { api('subtitle', i); cleanPlayer(false); }
+    });
+  }
+  function showSub(text) {
+    var el = byId('__tvsub');
+    if (!text) { if (el) el.innerHTML = ''; return; }
+    if (!el) { el = document.createElement('div'); el.id = '__tvsub'; document.body.appendChild(el); }
+    var h = '<span>' + esc(text).replace(/\n/g, '<br>') + '</span>';
+    if (el.innerHTML !== h) el.innerHTML = h;
+  }
+  // Runs on the video's own time updates (about 4 times a second) only while subtitles are on.
+  document.addEventListener('timeupdate', function () {
+    if (!SUB.label) return;
+    if ((api('playlist_id') || '') !== SUB.ep) { setSub(SUB.label); return; }   // next episode
+    if (!SUB.cues) return;
+    var t = +api('time') || 0, c = SUB.cues, i = SUB.i;
+    if (c[i] && t < c[i].a) i = 0;
+    while (i < c.length && c[i].b < t) i++;
+    SUB.i = i;
+    showSub(c[i] && t >= c[i].a && t <= c[i].b ? c[i].t : '');
+  }, true);
 
   function playerStop() {
     reportProgress();
@@ -563,6 +694,7 @@
     PL.started = false;
     closePanel();
     hideBar();
+    showSub('');
     api('pause');
   }
 

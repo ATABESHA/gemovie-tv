@@ -165,7 +165,14 @@ public class MainActivity extends Activity {
         }
 
         String cmd = commandFor(code);
-        if (cmd == null) return super.dispatchKeyEvent(e);
+        if (cmd == null) {
+            // A button the app doesn't use yet (e.g. extra app buttons on the remote):
+            // show its code once, so it can be given a job.
+            if (down && e.getRepeatCount() == 0 && !isSystemKey(code)) {
+                toast("ღილაკი: " + KeyEvent.keyCodeToString(code).replace("KEYCODE_", "") + " (" + code + ")");
+            }
+            return super.dispatchKeyEvent(e);
+        }
 
         // While typing in a text field, let left/right move the caret, OK submit,
         // and the I key type an "i".
@@ -180,6 +187,27 @@ public class MainActivity extends Activity {
                     + e.getRepeatCount() + ")", null);
         }
         return true;
+    }
+
+    /** Keys the TV itself handles (volume, power, home…): no code message for these. */
+    private static boolean isSystemKey(int code) {
+        switch (code) {
+            case KeyEvent.KEYCODE_VOLUME_UP: case KeyEvent.KEYCODE_VOLUME_DOWN:
+            case KeyEvent.KEYCODE_VOLUME_MUTE: case KeyEvent.KEYCODE_MUTE:
+            case KeyEvent.KEYCODE_POWER: case KeyEvent.KEYCODE_HOME:
+            case KeyEvent.KEYCODE_SETTINGS: case KeyEvent.KEYCODE_TV_INPUT:
+            case KeyEvent.KEYCODE_SHIFT_LEFT: case KeyEvent.KEYCODE_SHIFT_RIGHT:
+            case KeyEvent.KEYCODE_CTRL_LEFT: case KeyEvent.KEYCODE_CTRL_RIGHT:
+            case KeyEvent.KEYCODE_ALT_LEFT: case KeyEvent.KEYCODE_ALT_RIGHT:
+            case KeyEvent.KEYCODE_UNKNOWN:
+                return true;
+            default:
+                // Letters, digits and symbols are for typing in search.
+                return code >= KeyEvent.KEYCODE_0 && code <= KeyEvent.KEYCODE_9
+                        || code >= KeyEvent.KEYCODE_A && code <= KeyEvent.KEYCODE_Z
+                        || code == KeyEvent.KEYCODE_SPACE || code == KeyEvent.KEYCODE_DEL
+                        || code == KeyEvent.KEYCODE_COMMA || code == KeyEvent.KEYCODE_PERIOD;
+        }
     }
 
     private static String commandFor(int code) {
