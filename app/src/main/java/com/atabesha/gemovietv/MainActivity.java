@@ -1,6 +1,7 @@
 package com.atabesha.gemovietv;
 
 import android.app.Activity;
+import android.content.pm.PackageInfo;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
@@ -164,9 +165,11 @@ public class MainActivity extends Activity {
         String cmd = commandFor(code);
         if (cmd == null) return super.dispatchKeyEvent(e);
 
-        // While typing in a text field, let left/right move the caret and OK submit.
+        // While typing in a text field, let left/right move the caret, OK submit,
+        // and the I key type an "i".
         if (editing && customView == null
-                && (cmd.equals("left") || cmd.equals("right") || cmd.equals("ok"))) {
+                && (cmd.equals("left") || cmd.equals("right") || cmd.equals("ok")
+                    || code == KeyEvent.KEYCODE_I)) {
             return super.dispatchKeyEvent(e);
         }
 
@@ -195,6 +198,9 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_MEDIA_NEXT: return "ff";
             case KeyEvent.KEYCODE_MEDIA_REWIND:
             case KeyEvent.KEYCODE_MEDIA_PREVIOUS: return "rw";
+            case KeyEvent.KEYCODE_PROG_RED:
+            case KeyEvent.KEYCODE_INFO:
+            case KeyEvent.KEYCODE_I: return "info";
             case KeyEvent.KEYCODE_PAGE_UP:
             case KeyEvent.KEYCODE_CHANNEL_UP: return "pageup";
             case KeyEvent.KEYCODE_PAGE_DOWN:
@@ -323,8 +329,9 @@ public class MainActivity extends Activity {
         @Override
         public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
             if (isBlockedHost(req.getUrl().getHost())) {
-                return new WebResourceResponse("text/plain", "utf-8",
-                        new ByteArrayInputStream(new byte[0]));
+                // A clean "not found" makes ad loaders give up instead of retrying.
+                return new WebResourceResponse("text/plain", "utf-8", 404, "Blocked",
+                        Collections.emptyMap(), new ByteArrayInputStream(new byte[0]));
             }
             return null;
         }
@@ -385,6 +392,12 @@ public class MainActivity extends Activity {
         public void setPlaying(boolean value) {
             playing = value;
             ui.post(MainActivity.this::updateKeepScreenOn);
+        }
+
+        @JavascriptInterface
+        public String webViewVersion() {
+            PackageInfo p = WebViewCompat.getCurrentWebViewPackage(MainActivity.this);
+            return p == null ? "unknown" : p.versionName;
         }
 
         @JavascriptInterface

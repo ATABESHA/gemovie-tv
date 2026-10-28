@@ -122,8 +122,11 @@
     '[tabindex]:not([tabindex="-1"]),video,iframe';
   var LINKISH = 'a[href],button,[role=button],[role=link]';
 
-  var cache = null;      // gathered candidates, rebuilt when the DOM changes
+  var cache = null;      // gathered candidates, re-read when older than CACHE_MS
   var cacheRoot = null;
+  var cacheTime = 0;
+  var cacheCount = -1;   // element count when gathered: a page change re-reads at once
+  var CACHE_MS = 400;    // covers a burst of held-arrow repeats, then re-reads the page
   var cur = null;        // highlighted element
   var lastRect = null;   // where the highlight was, to recover if the element disappears
   var editing = false;
@@ -148,8 +151,12 @@
 
   function gather() {
     var root = scopeRoot();
-    if (cache && cacheRoot === root) return cache;
+    var now = Date.now();
+    var count = root ? root.getElementsByTagName('*').length : 0;
+    if (cache && cacheRoot === root && cacheCount === count && now - cacheTime < CACHE_MS) return cache;
     cacheRoot = root;
+    cacheTime = now;
+    cacheCount = count;
     var found = [], set = new Set();
     function add(el) {
       if (set.has(el)) return;
@@ -344,11 +351,10 @@
     }
   }
 
-  new MutationObserver(function () {
-    cache = null;
-    if (cur && !cur.isConnected) cur = null;
-    if (TOP) { fixViewport(); addStyle(); }
-  }).observe(document, { childList: true, subtree: true }); // works before <html> exists
+  // No page watcher: during a movie the player changes its page many times a second,
+  // and reacting to every change costs CPU for the whole film. Instead the item list
+  // is re-read on key presses (gather() expires after CACHE_MS), so the script does
+  // no work at all while you just watch.
 
   // ===================================== full screen: player controls mode
   var revealTimer = null, idleTimer = null;
@@ -447,11 +453,80 @@
     else if (cmd === 'play' || cmd === 'pause' || cmd === 'stop') media(cmd);
   }
 
+  // ================================ playback info overlay (red / Info button)
+  // Shows whether the lag is the TV struggling to decode (dropped frames), the
+  // network (buffer empty, stalls) or the page growing (memory, elements).
+  var diagOn = false, diagTimer = null, diagStart = 0, diagHist = [], stalls = 0;
+  document.addEventListener('waiting', function () { stalls++; }, true);
+
+  function setDiag(on) {
+    diagOn = on;
+    clearInterval(diagTimer);
+    diagTimer = null;
+    var old = document.getElementById('__tvdiag');
+    if (old) old.remove();
+    if (on && mainVideo()) {
+      diagStart = Date.now();
+      diagHist = [];
+      updateDiag();
+      diagTimer = setInterval(updateDiag, 1000);
+    }
+    sendToFrames({ diag: on });
+  }
+
+  function updateDiag() {
+    var v = mainVideo();
+    if (!v) return;
+    var host = fsEl();
+    if (!host || host.tagName === 'VIDEO') host = document.body;
+    var el = document.getElementById('__tvdiag');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = '__tvdiag';
+      el.style.cssText = 'position:fixed;left:16px;top:16px;z-index:2147483647;' +
+        'background:rgba(0,0,0,.82);color:#7CFC7C;font:18px/1.45 monospace;' +
+        'padding:12px 16px;border-radius:8px;pointer-events:none;white-space:pre';
+    }
+    if (el.parentNode !== host) host.appendChild(el);
+
+    var q = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality() : null;
+    var dropped = q ? q.droppedVideoFrames : (v.webkitDroppedFrameCount || 0);
+    var frames = q ? q.totalVideoFrames : (v.webkitDecodedFrameCount || 0);
+    var now = Date.now();
+    diagHist.push({ t: now, d: dropped, f: frames });
+    while (diagHist.length > 11) diagHist.shift();
+    var h0 = diagHist[0];
+    var recentF = frames - h0.f, recentD = dropped - h0.d;
+    var recentPct = recentF > 0 ? Math.round(recentD * 100 / recentF) : 0;
+
+    var ahead = 0;
+    for (var i = 0; i < v.buffered.length; i++) {
+      if (v.buffered.start(i) <= v.currentTime + 0.5 && v.buffered.end(i) >= v.currentTime) {
+        ahead = v.buffered.end(i) - v.currentTime;
+      }
+    }
+    var state = v.paused ? 'paused' : (v.readyState < 3 ? 'BUFFERING' : 'playing');
+    var mem = performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) + ' MB' : 'n/a';
+    var wv = '';
+    try { wv = App && App.webViewVersion ? App.webViewVersion() : ''; } catch (e) {}
+    var mins = Math.floor((now - diagStart) / 60000);
+
+    el.textContent =
+      (wv ? 'WebView     ' + wv + '\n' : '') +
+      'Video       ' + v.videoWidth + 'x' + v.videoHeight + '  ' + state + '\n' +
+      'Dropped     ' + dropped + ' of ' + frames + ' frames\n' +
+      'Last 10 s   ' + recentD + ' dropped (' + recentPct + '%)\n' +
+      'Buffer      ' + Math.round(ahead) + ' s ahead,  stalls: ' + stalls + '\n' +
+      'Memory      ' + mem + ',  elements: ' + document.getElementsByTagName('*').length + '\n' +
+      'Open for    ' + mins + ' min   (red / Info button to close)';
+  }
+
   window.addEventListener('message', function (ev) {
     var d = ev.data;
     if (!d || !d.__tv) return;
     if (d.__tv.media) media(d.__tv.media, d.__tv.arg);
     else if (d.__tv.fskey) fsKey(d.__tv.fskey);
+    else if (d.__tv.diag !== undefined) setDiag(d.__tv.diag);
   });
 
   if (!TOP) return;
@@ -509,6 +584,9 @@
 
   var lastMove = 0;
   function key(cmd, fullscreen, repeat) {
+    if (cmd === 'info') { if (!repeat) setDiag(!diagOn); return; }
+    fixViewport();
+    addStyle();
     if (fullscreen) {
       if (cmd === 'ok' && repeat) return;
       fsKey(cmd);

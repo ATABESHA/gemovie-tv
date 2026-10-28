@@ -18,6 +18,15 @@ The player's control bar appears with a red highlight; move with the arrows and 
 to open a menu or choose an option. Back (or 10 s without pressing anything) returns to
 normal playback; Back again leaves full screen.
 
+**Playback info** (to find the cause of lag): press the **red** button (or Info; **I** key in
+BlueStacks) while a video plays. It shows WebView version, resolution, dropped frames,
+seconds buffered, stalls and memory. Press again to close.
+
+- Dropped frames climbing → the TV can't decode it smoothly: pick a lower quality,
+  or update *Android System WebView* in Google Play.
+- Buffer at 0 s / stalls rising → network or server, not the TV.
+- Memory or elements growing every few minutes → the page itself is leaking.
+
 ## Test builds vs TV releases
 
 - **Every push to `main`** builds a **test** APK only:
