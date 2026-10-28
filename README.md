@@ -1,4 +1,4 @@
-# GE Movie TV
+# MyMovie (TV app for ge.movie)
 
 An Android TV app that opens **ge.movie** full screen and lets you use it with the
 TV remote, Netflix-style: no mouse pointer, a red highlight moves between items.
@@ -61,7 +61,7 @@ seconds buffered, stalls and memory. Press again to close.
 
 1. Download the test APK above and drag it onto the BlueStacks window (or use
    *Install APK* in the side bar).
-2. Open **GE Movie** in BlueStacks. Turn off BlueStacks' game controls / key mapping for
+2. Open **MyMovie** in BlueStacks. Turn off BlueStacks' game controls / key mapping for
    this app so the arrows reach it.
 3. Keyboard = remote: **arrow keys** move, **Enter** = OK, **Esc** = Back.
 4. A new test build installs over the old one the same way (sign-ins are kept).
@@ -101,7 +101,7 @@ Unknown sources → turn on for the app you install with (Downloader or File man
 1. Copy `gemovie-tv.apk` to a USB stick and plug it into the TV.
 2. Open it with a file manager app (e.g. *File Commander* from Google Play) → Install.
 
-The app appears on the home screen as **GE Movie** (Apps row). You can move it to the
+The app appears on the home screen as **MyMovie** (Apps row). You can move it to the
 favourites row with a long press on OK.
 
 ## Settings in the code

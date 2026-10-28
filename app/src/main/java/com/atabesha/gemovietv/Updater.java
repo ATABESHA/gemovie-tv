@@ -81,7 +81,7 @@ final class Updater {
         }
         new AlertDialog.Builder(act)
                 .setTitle("Update available")
-                .setMessage("A new version of GE Movie (build " + remote + ") is ready. Install it now?")
+                .setMessage("A new version of MyMovie (build " + remote + ") is ready. Install it now?")
                 .setPositiveButton("Install", (d, w) -> download())
                 .setNegativeButton("Later", (d, w) -> busy = false)
                 .setOnCancelListener(d -> busy = false)
@@ -124,7 +124,7 @@ final class Updater {
         if (!canInstall()) {
             // Android asks once whether this app may install updates.
             pendingApk = apk;
-            toast("Allow GE Movie to install apps, then press Back");
+            toast("Allow MyMovie to install apps, then press Back");
             try {
                 act.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                         Uri.parse("package:" + act.getPackageName())));

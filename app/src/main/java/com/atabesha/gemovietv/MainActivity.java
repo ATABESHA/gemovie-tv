@@ -105,6 +105,43 @@ public class MainActivity extends Activity {
 
         loadTvUi();
         web.requestFocus();
+        showSplash();
+    }
+
+    // ------------------------------------------------------------ start-up animation
+
+    /** Logo animation with sound (res/raw/splash.mp4); the movie screens load behind it. */
+    private FrameLayout splash;
+
+    private void showSplash() {
+        splash = new FrameLayout(this);
+        splash.setBackgroundColor(Color.BLACK);
+        android.widget.VideoView video = new android.widget.VideoView(this);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        lp.gravity = android.view.Gravity.CENTER;
+        splash.addView(video, lp);
+        root.addView(splash, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        video.setVideoURI(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.splash));
+        video.setOnCompletionListener(mp -> hideSplash());
+        video.setOnErrorListener((mp, what, extra) -> { hideSplash(); return true; });
+        video.start();
+        ui.postDelayed(this::hideSplash, 8000);   // safety net if the video never ends
+    }
+
+    private void hideSplash() {
+        final FrameLayout s = splash;
+        if (s == null) return;
+        splash = null;
+        s.animate().alpha(0f).setDuration(400).withEndAction(() -> {
+            for (int i = 0; i < s.getChildCount(); i++) {
+                View c = s.getChildAt(i);
+                if (c instanceof android.widget.VideoView) ((android.widget.VideoView) c).stopPlayback();
+            }
+            root.removeView(s);
+            web.requestFocus();
+        }).start();
     }
 
     private void setupWebView() {
@@ -157,6 +194,13 @@ public class MainActivity extends Activity {
     public boolean dispatchKeyEvent(KeyEvent e) {
         int code = e.getKeyCode();
         boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
+
+        // During the start-up animation: OK or Back skips it, other keys wait.
+        if (splash != null) {
+            if (down && (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
+                    || code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE)) hideSplash();
+            return true;
+        }
 
         // Esc = Back, so a PC keyboard (BlueStacks) works like the TV remote.
         if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE) {
