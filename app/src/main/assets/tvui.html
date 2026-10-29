@@ -106,6 +106,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 
 /* ---------- player: only this is shown while a movie plays */
 #player{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#000;z-index:30}
+#trailer{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#000;z-index:35}
 #loading{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-size:20px;color:var(--dim);z-index:25;display:none}
 #loading.on{display:block}
 </style>
@@ -251,6 +252,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       var fr = doc.querySelector('iframe#movie_embed, iframe#serial_embed, iframe[src*="embed"]');
       var og = doc.querySelector('meta[property="og:image"]');
       var h1 = txt(doc, 'h1').split('•')[0].trim();
+      var ym = /(?:youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?v=|v\/)|youtu\.be\/)([\w-]{11})/.exec(doc.documentElement.innerHTML);
+      if (ym) trailers.set(item.url, ym[1]);
       return { plot: plot, facts: facts, imdb: txt(doc, '.fullimdb') || item.rating,
         embed: fr ? (fr.getAttribute('src') || fr.getAttribute('data-src')) : '',
         bg: og ? tmdb(og.content, 'w1280') : item.bg, title: item.title || h1 };
@@ -554,6 +557,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       detData = d;
       if (d.bg) $('.bg', det).style.backgroundImage = 'url("' + d.bg + '")';
       renderDetails();
+      findTrailer(it);
     }).catch(function (e) {
       if (detItem !== it) return;
       $('.plot', det).textContent = 'ვერ ჩაიტვირთა (' + e.message + ')';
@@ -573,14 +577,59 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   }
   function detButtons(it) {
     var cw = cwGet(it.url);
+    var tr = trailers.get(it.url) ? '<span class="btn f" data-act="trailer">🎬 თრეილერი</span>' : '';
     if (cw && (cw.t > 30 || cw.ep)) {
       var where = [epLabel(cw.ep), cw.t > 30 ? fmtTime(cw.t) : ''].filter(Boolean).join(' · ');
       return '<div class="bar"><span class="btn play f" data-act="resume">▶ გაგრძელება <small>' + esc(where) + '</small></span>' +
-        '<span class="btn f" data-act="play">↺ თავიდან</span>' +
+        '<span class="btn f" data-act="play">↺ თავიდან</span>' + tr +
         '<span class="btn f" data-act="forget">სიიდან წაშლა</span>' +
         '<span class="btn f" data-act="back">უკან</span></div>';
     }
-    return '<div class="bar"><span class="btn play f" data-act="play">▶ ყურება</span><span class="btn f" data-act="back">უკან</span></div>';
+    return '<div class="bar"><span class="btn play f" data-act="play">▶ ყურება</span>' + tr +
+      '<span class="btn f" data-act="back">უკან</span></div>';
+  }
+
+  // ---------- trailers (YouTube)
+  var trailers = new Map();          // movie page -> YouTube video id
+  var asked = {};
+  function findTrailer(it) {
+    if (trailers.has(it.url) || asked[it.url] || !App || !App.findTrailer) return;
+    asked[it.url] = 1;
+    var q = (it.en || it.title) + ' ' + (it.year || '') + (it.serial ? ' series' : '') + ' trailer';
+    App.findTrailer(q, it.url);      // the app answers through UI.onTrailer
+  }
+  function trailerFound(url, id) {
+    if (!id || trailers.has(url)) return;
+    trailers.set(url, id);
+    if (detItem && detItem.url === url && det.classList.contains('on')) {
+      var act = cur && cur.dataset ? cur.dataset.act : '';
+      $('.txt .bar', det).outerHTML = detButtons(detItem);
+      focus($('[data-act="' + act + '"]', det) || $('[data-act=resume]', det) || $('[data-act=play]', det));
+    }
+  }
+  var trailer = null;
+  function openTrailer() {
+    var id = detItem && trailers.get(detItem.url);
+    if (!id) return;
+    var f = document.createElement('iframe');
+    f.id = 'trailer';
+    f.allow = 'autoplay; encrypted-media; fullscreen';
+    f.setAttribute('allowfullscreen', '');
+    f.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3';
+    trailer = f;
+    document.body.appendChild(f);
+  }
+  function closeTrailer() {
+    var f = trailer;
+    trailer = null;
+    try { f.src = 'about:blank'; } catch (e) {}
+    f.remove();                       // nothing of it keeps running
+    focus($('[data-act=trailer]', det) || $('[data-act=play]', det));
+  }
+  function trailerKey(cmd) {
+    var m = { ok: ['playpause'], playpause: ['playpause'], play: ['play'], pause: ['pause'],
+      left: ['seek', -10], rw: ['seek', -10], right: ['seek', 10], ff: ['seek', 10] }[cmd];
+    if (m) try { trailer.contentWindow.postMessage({ __tv: { media: m[0], arg: m[1] } }, '*'); } catch (e) {}
   }
   function closeDetails() {
     renderCwRow();
@@ -772,6 +821,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     else if (act === 'clear') { B.params = {}; setFilter('', ''); }
     else if (act === 'play') openPlayer(null);
     else if (act === 'resume') openPlayer(cwGet(detItem.url));
+    else if (act === 'trailer') openTrailer();
     else if (act === 'forget') { cwForget(detItem.url); $('.txt .bar', det).outerHTML = detButtons(detItem); focus($('[data-act=play]', det)); }
     else if (act === 'back') closeDetails();
     else if (act === 'retry' && el.__run) el.__run();
@@ -799,6 +849,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   var UI = {
     key: function (cmd, fullscreen, repeat) {
       if (playing) { post({ pkey: cmd, repeat: repeat }); return; }
+      if (trailer) { if (cmd === 'back') closeTrailer(); else if (!repeat || /left|right|ff|rw/.test(cmd)) trailerKey(cmd); return; }
       if (OV) {
         if (cmd === 'up' && OV.sel > 0) { OV.sel--; renderOverlay(); }
         else if (cmd === 'down' && OV.sel < OV.list.length - 1) { OV.sel++; renderOverlay(); }
@@ -818,6 +869,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     // Back: player -> details -> list/home -> top bar -> (app asks to exit)
     back: function () {
       if (playing) { closePlayer(); return true; }
+      if (trailer) { closeTrailer(); return true; }
       if (OV) { closeOverlay(); return true; }
       if (det.classList.contains('on')) { closeDetails(); return true; }
       if (document.activeElement && document.activeElement.id === 'q') { $('#q').blur(); return true; }
@@ -826,6 +878,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       return false;
     }
   };
+  UI.onTrailer = trailerFound;
   window.__tvui = UI;
   if (!window.__tv) window.__tv = { key: UI.key, back: UI.back, pageReady: function () {} };
 

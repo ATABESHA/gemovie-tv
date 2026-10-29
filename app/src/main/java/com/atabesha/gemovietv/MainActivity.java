@@ -477,6 +477,17 @@ public class MainActivity extends Activity {
             return p == null ? "unknown" : p.versionName;
         }
 
+        /** Finds a trailer on YouTube (the first search result) and tells the page. */
+        @JavascriptInterface
+        public void findTrailer(String query, String key) {
+            new Thread(() -> {
+                String id = youtubeSearch(query);
+                if (id == null) return;
+                ui.post(() -> js("window.__tvui&&__tvui.onTrailer&&__tvui.onTrailer("
+                        + org.json.JSONObject.quote(key) + "," + org.json.JSONObject.quote(id) + ")", null));
+            }, "trailer-search").start();
+        }
+
         @JavascriptInterface
         public void checkUpdate() {
             ui.post(updater::checkNow);
@@ -502,6 +513,43 @@ public class MainActivity extends Activity {
     }
 
     // ------------------------------------------------------------ helpers
+
+    private static final java.util.regex.Pattern YT_ID =
+            java.util.regex.Pattern.compile("\"videoRenderer\":\\{\"videoId\":\"([\\w-]{11})\"");
+    private static final java.util.regex.Pattern YT_ANY =
+            java.util.regex.Pattern.compile("\"videoId\":\"([\\w-]{11})\"");
+
+    /** YouTube search page, first video result. Runs on a background thread. */
+    private static String youtubeSearch(String query) {
+        java.net.HttpURLConnection c = null;
+        try {
+            java.net.URL u = new java.net.URL("https://www.youtube.com/results?search_query="
+                    + java.net.URLEncoder.encode(query, "UTF-8"));
+            c = (java.net.HttpURLConnection) u.openConnection();
+            c.setConnectTimeout(8000);
+            c.setReadTimeout(10000);
+            c.setRequestProperty("User-Agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36");
+            c.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
+            c.setRequestProperty("Cookie", "SOCS=CAI; CONSENT=YES+1");   // skip the EU consent page
+            if (c.getResponseCode() != 200) return null;
+            StringBuilder sb = new StringBuilder();
+            try (java.io.BufferedReader r = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
+                char[] buf = new char[16384];
+                int n;
+                while ((n = r.read(buf)) > 0 && sb.length() < 2_000_000) sb.append(buf, 0, n);
+            }
+            java.util.regex.Matcher m = YT_ID.matcher(sb);
+            if (m.find()) return m.group(1);
+            m = YT_ANY.matcher(sb);
+            return m.find() ? m.group(1) : null;
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (c != null) c.disconnect();
+        }
+    }
 
     private void loadTvUi() {
         // The page runs under ge.movie's address, so the app's logo is embedded into it.
