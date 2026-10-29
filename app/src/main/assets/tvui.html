@@ -19,15 +19,17 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 #top .logo img{height:46px;width:auto;border-radius:8px;display:block}
 #top .logo span{font-size:18px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
 #top .logo span i{font-style:normal;color:#c8afff}
-#top .tab{font-size:18px;padding:9px 16px;border-radius:24px;color:var(--dim)}
+#top .tab{font-size:17px;padding:9px 13px;white-space:nowrap;border-radius:24px;color:var(--dim)}
 #top .tab.on{color:#fff;background:rgba(255,255,255,.12)}
-#q{margin-left:auto;width:250px;height:46px;border-radius:24px;border:0;padding:0 22px;
+#q{margin-left:auto;width:200px;min-width:120px;height:46px;border-radius:24px;border:0;padding:0 22px;
   font:17px "Noto Sans Georgian",sans-serif;background:rgba(255,255,255,.12);color:#fff;outline:none}
 #q::placeholder{color:var(--dim)}
-#go{height:46px;padding:0 24px;border-radius:24px;background:rgba(255,255,255,.12);font-size:17px;
+#go{height:46px;padding:0 18px;white-space:nowrap;border-radius:24px;background:rgba(255,255,255,.12);font-size:17px;
   display:flex;align-items:center}
-#upd{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.12);font-size:24px;
-  display:flex;align-items:center;justify-content:center;margin-left:4px}
+#top .round{width:46px;height:46px;flex:0 0 46px;border-radius:50%;background:rgba(255,255,255,.12);font-size:24px;
+  display:flex;align-items:center;justify-content:center}
+#lang svg{width:30px;height:20px;border-radius:3px;display:block;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+#lang.fx{background:#fff!important}
 #top .fx{background:#fff!important;color:#000!important}
 #top .logo.fx{background:rgba(255,255,255,.9)!important}
 #q.fx{background:rgba(255,255,255,.22)!important;color:#fff!important;box-shadow:0 0 0 3px #fff}
@@ -103,6 +105,11 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 #ov .items{max-height:540px;overflow:hidden}
 #ov .it{font-size:19px;padding:11px 26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #ov .it.sel{background:#fff;color:#000}
+#ov.drop{background:rgba(0,0,0,.35)}
+#ov.drop .box{left:auto;right:40px;top:80px;transform:none;width:380px}
+#ov .it.info{color:var(--dim);font-size:16px}
+#ov .it.info.sel{background:rgba(255,255,255,.18);color:#fff}
+#ov .it svg{width:26px;height:17px;vertical-align:-2px;margin-right:12px;border-radius:2px}
 
 /* ---------- player: only this is shown while a movie plays */
 #player{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#000;z-index:30}
@@ -121,19 +128,21 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 
   <div id="top">
     <div class="logo f" data-act="home"><img src="__LOGO__" alt="MyMovie"></div>
-    <div class="tab f" data-act="home" id="t-home">მთავარი</div>
-    <div class="tab f" data-act="movie" id="t-movie">ფილმები</div>
-    <div class="tab f" data-act="serial" id="t-serial">სერიალები</div>
-    <div class="tab f" data-act="cw" id="t-cw">განაგრძე ყურება</div>
-    <input id="q" class="f" type="text" placeholder="მოძებნე ფილმები, სერიალები..." autocomplete="off">
-    <div id="go" class="f" data-act="search">ძებნა</div>
-    <div id="upd" class="f" data-act="update" title="განახლება">⟳</div>
+    <div class="tab f" data-act="home" id="t-home" data-t="home"></div>
+    <div class="tab f" data-act="movie" id="t-movie" data-t="movies"></div>
+    <div class="tab f" data-act="serial" id="t-serial" data-t="series"></div>
+    <div class="tab f" data-act="cw" id="t-cw" data-t="cw"></div>
+    <div class="tab f" data-act="list" id="t-list" data-t="mylist"></div>
+    <input id="q" class="f" type="text" autocomplete="off">
+    <div id="go" class="f" data-act="search" data-t="searchBtn"></div>
+    <div id="lang" class="f round" data-act="langmenu"></div>
+    <div id="set" class="f round" data-act="settings">⚙</div>
   </div>
 </div>
 
 <div id="det"><div class="bg"></div><div class="fade"></div><div class="txt"></div></div>
 <div id="ov"><div class="box"><h4></h4><div class="items"></div></div></div>
-<div id="loading">იტვირთება…</div>
+<div id="loading"></div>
 
 <script>
 (function () {
@@ -145,6 +154,68 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function txt(root, sel) { var e = root.querySelector(sel); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; }
   function tmdb(u, size) { return u ? u.replace('/t/p/original/', '/t/p/' + size + '/') : ''; }
+
+  // ============================================== languages and settings
+  // Kept on this TV until changed: app language and the default audio language for movies.
+  function setting(k, def) { try { return localStorage.getItem('tv_' + k) || def; } catch (e) { return def; } }
+  function saveSetting(k, v) { try { localStorage.setItem('tv_' + k, v); } catch (e) {} }
+  var LANG = setting('lang', 'ka');        // ka | ru | en
+  var MLANG = setting('mlang', 'ka');      // default movie audio
+  var I18N = {
+    ka: { home: 'მთავარი', movies: 'ფილმები', series: 'სერიალები', cw: 'განაგრძე', cwRow: 'განაგრძე ყურება',
+      mylist: 'ჩემი სია', searchPh: 'ძებნა...', searchBtn: 'ძებნა', searchFor: 'ძებნა:', loading: 'იტვირთება…',
+      notFound: 'ვერაფერი მოიძებნა', loadFail: 'ვერ ჩაიტვირთა', retry: 'თავიდან ცდა', site: 'ვებსაიტის გახსნა',
+      page: 'გვერდი', clear: 'გასუფთავება', all: 'ყველა', watch: '▶ ყურება', resume: '▶ გაგრძელება',
+      fromStart: '↺ თავიდან', forget: 'სიიდან წაშლა', trailer: '🎬 თრეილერი', back: 'უკან',
+      addList: '+ ჩემს სიაში', inList: '✓ ჩემს სიაშია', noVideo: 'ვიდეო ვერ მოიძებნა.',
+      cwEmpty: 'ჯერ არაფერი გიყურებიათ. დაიწყე ფილმი და აქ გამოჩნდება.',
+      listEmpty: 'სია ცარიელია. ფილმის გვერდზე დააჭირე „+ ჩემს სიაში“.', titles: 'სათაური',
+      settings: 'პარამეტრები', checkUpd: '⟳ განახლების შემოწმება', version: 'ვერსია', language: 'ენა',
+      appLang: 'აპის ენა', movieLang: 'ფილმის ენა', newRow: '',
+      genre: 'ჟანრი', director: 'რეჟისორი', country: 'ქვეყანა', studio: 'სტუდია', dubbing: 'გახმოვანება', sort: 'სორტირება' },
+    ru: { home: 'Главная', movies: 'Фильмы', series: 'Сериалы', cw: 'Продолжить', cwRow: 'Продолжить просмотр',
+      mylist: 'Мой список', searchPh: 'Поиск...', searchBtn: 'Найти', searchFor: 'Поиск:', loading: 'Загрузка…',
+      notFound: 'Ничего не найдено', loadFail: 'Не удалось загрузить', retry: 'Повторить', site: 'Открыть сайт',
+      page: 'Стр.', clear: 'Сбросить', all: 'Все', watch: '▶ Смотреть', resume: '▶ Продолжить',
+      fromStart: '↺ Сначала', forget: 'Убрать', trailer: '🎬 Трейлер', back: 'Назад',
+      addList: '+ В мой список', inList: '✓ В моём списке', noVideo: 'Видео не найдено.',
+      cwEmpty: 'Вы ещё ничего не смотрели. Начните фильм, и он появится здесь.',
+      listEmpty: 'Список пуст. На странице фильма нажмите «+ В мой список».', titles: 'назв.',
+      settings: 'Настройки', checkUpd: '⟳ Проверить обновления', version: 'Версия', language: 'Язык',
+      appLang: 'Язык приложения', movieLang: 'Язык фильмов', newRow: 'Новинки',
+      genre: 'Жанр', director: 'Режиссёр', country: 'Страна', studio: 'Студия', dubbing: 'Озвучка', sort: 'Сортировка' },
+    en: { home: 'Home', movies: 'Movies', series: 'Series', cw: 'Continue', cwRow: 'Continue watching',
+      mylist: 'My List', searchPh: 'Search...', searchBtn: 'Search', searchFor: 'Search:', loading: 'Loading…',
+      notFound: 'Nothing found', loadFail: "Couldn't load", retry: 'Try again', site: 'Open website',
+      page: 'Page', clear: 'Clear', all: 'All', watch: '▶ Watch', resume: '▶ Resume',
+      fromStart: '↺ From start', forget: 'Remove', trailer: '🎬 Trailer', back: 'Back',
+      addList: '+ My List', inList: '✓ In My List', noVideo: 'Video not found.',
+      cwEmpty: "You haven't watched anything yet. Start a movie and it will show here.",
+      listEmpty: 'Your list is empty. On a movie page press "+ My List".', titles: 'titles',
+      settings: 'Settings', checkUpd: '⟳ Check for updates', version: 'Version', language: 'Language',
+      appLang: 'App language', movieLang: 'Movie language', newRow: 'New releases',
+      genre: 'Genre', director: 'Director', country: 'Country', studio: 'Studio', dubbing: 'Dubbing', sort: 'Sort' }
+  };
+  var LANG_NAMES = { ka: 'ქართული', ru: 'Русский', en: 'English' };
+  function T(k) {
+    var d = I18N[LANG] || I18N.ka;
+    if (Object.prototype.hasOwnProperty.call(d, k)) return d[k];     // '' is a real value (use the site's text)
+    return Object.prototype.hasOwnProperty.call(I18N.ka, k) ? I18N.ka[k] : k;
+  }
+  var FLAGS = {
+    ka: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#fff"/><rect x="13" width="4" height="20" fill="#e8112d"/>' +
+      '<rect y="8" width="30" height="4" fill="#e8112d"/><g fill="#e8112d"><rect x="5.6" y="2.3" width="1.8" height="4.4"/>' +
+      '<rect x="4.3" y="3.6" width="4.4" height="1.8"/><rect x="22.6" y="2.3" width="1.8" height="4.4"/><rect x="21.3" y="3.6" width="4.4" height="1.8"/>' +
+      '<rect x="5.6" y="13.3" width="1.8" height="4.4"/><rect x="4.3" y="14.6" width="4.4" height="1.8"/><rect x="22.6" y="13.3" width="1.8" height="4.4"/>' +
+      '<rect x="21.3" y="14.6" width="4.4" height="1.8"/></g></svg>',
+    ru: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#fff"/><rect y="6.67" width="30" height="6.67" fill="#0039a6"/>' +
+      '<rect y="13.33" width="30" height="6.67" fill="#d52b1e"/></svg>',
+    en: '<svg viewBox="0 0 60 40"><rect width="60" height="40" fill="#012169"/><path d="M0,0L60,40M60,0L0,40" stroke="#fff" stroke-width="8"/>' +
+      '<path d="M0,0L60,40M60,0L0,40" stroke="#c8102e" stroke-width="3"/><path d="M30,0V40M0,20H60" stroke="#fff" stroke-width="12"/>' +
+      '<path d="M30,0V40M0,20H60" stroke="#c8102e" stroke-width="7"/></svg>'
+  };
+  // Fact labels as the site writes them (Georgian) -> translation keys
+  var FACT_KEYS = { 'ჟანრი': 'genre', 'რეჟისორი': 'director', 'ქვეყანა': 'country', 'სტუდია': 'studio' };
 
   // ================================================================ data
   // Everything comes from ge.movie's own pages (same site, so the app may read them).
@@ -201,7 +272,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       })[0];
       var sec = a && (a.closest('section') || a.parentElement.parentElement);
       sec = sec || doc.getElementById('block_cinemas');
-      return { title: sec ? (txt(sec, '.section-title') || 'კინოთეატრებში') : 'კინოთეატრებში',
+      var siteTitle = sec ? (txt(sec, '.section-title') || 'კინოთეატრებში') : 'კინოთეატრებში';
+      return { title: siteTitle,
         items: sec ? parseCards(sec) : [] };
     });
   }
@@ -224,8 +296,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   }
 
   function parseFilters(doc) {
-    var defs = [['genre', 'genres[]', 'ჟანრი'], ['translation', 'languages', 'გახმოვანება'],
-      ['country', 'countries', 'ქვეყანა'], ['sort', 'sort', 'სორტირება']];
+    var defs = [['genre', 'genres[]', 'genre'], ['translation', 'languages', 'dubbing'],
+      ['country', 'countries', 'country'], ['sort', 'sort', 'sort']];   // label = translation key
     return defs.map(function (d) {
       var fi = doc.querySelector('.filter-dropdowns .filter-item.' + d[0]);
       if (!fi) return null;
@@ -362,7 +434,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     if (!list.length) { if (old) old.remove(); return; }
     var sec = document.createElement('div');
     sec.className = 'line row cw';
-    sec.innerHTML = '<h3>განაგრძე ყურება</h3><div class="track"></div>';
+    sec.innerHTML = '<h3>' + esc(T('cwRow')) + '</h3><div class="track"></div>';
     var track = $('.track', sec);
     var r = { key: 'cw', items: list.map(function (x) { return x.item; }) };
     list.forEach(function (x) { track.appendChild(cardEl(x.item, x)); });
@@ -370,6 +442,65 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     sec.__row = r;
     delete mem.cw;
     if (old) body.replaceChild(sec, old); else body.insertBefore(sec, body.firstChild);
+  }
+
+  // ========================================================= my list
+  var ML_KEY = 'tv_mylist';
+  function myList() { try { return JSON.parse(localStorage.getItem(ML_KEY) || '[]'); } catch (e) { return []; } }
+  function inMyList(url) { return myList().some(function (x) { return x.url === url; }); }
+  function toggleMyList(it) {
+    var list = myList(), had = list.some(function (x) { return x.url === it.url; });
+    list = list.filter(function (x) { return x.url !== it.url; });
+    if (!had) list.unshift({ url: it.url, at: Date.now(), item: { url: it.url, serial: it.serial, title: it.title, en: it.en,
+      poster: it.poster, bg: it.bg, rating: it.rating, year: it.year, langs: it.langs, eps: it.eps } });
+    try { localStorage.setItem(ML_KEY, JSON.stringify(list.slice(0, 200))); } catch (e) {}
+  }
+
+  // ========================================================= menus
+  function settingsMenu() {
+    var ver = '';
+    try { ver = App && App.appVersion ? App.appVersion() : ''; } catch (e) {}
+    openOverlay(T('settings'), [
+      { t: T('checkUpd'), run: function () { if (App && App.checkUpdate) App.checkUpdate(); } },
+      { t: T('version') + ': ' + (ver || '—'), info: true, run: function () {} }
+    ], true);
+  }
+  function langMenu() {
+    openOverlay(T('language'), [
+      { t: T('appLang') + ': ' + LANG_NAMES[LANG], icon: FLAGS[LANG], run: function () { pickLang('lang'); }, keep: true },
+      { t: T('movieLang') + ': ' + LANG_NAMES[MLANG], icon: FLAGS[MLANG], run: function () { pickLang('mlang'); }, keep: true }
+    ], true);
+  }
+  function pickLang(which) {
+    var curL = which === 'lang' ? LANG : MLANG;
+    openOverlay(T(which === 'lang' ? 'appLang' : 'movieLang'), ['ka', 'ru', 'en'].map(function (l) {
+      return { t: LANG_NAMES[l], icon: FLAGS[l], cur: l === curL, run: function () {
+        saveSetting(which, l);
+        if (which === 'lang') { LANG = l; applyLang(true); } else { MLANG = l; }
+        try { App && App.setLang && App.setLang(LANG); } catch (e) {}
+      } };
+    }), true);
+  }
+  // Put the chosen language on everything already on screen.
+  function applyLang(rebuild) {
+    document.documentElement.lang = LANG;
+    $$('[data-t]').forEach(function (el) { el.textContent = T(el.dataset.t); });
+    $('#q').placeholder = T('searchPh');
+    $('#lang').innerHTML = FLAGS[LANG];
+    $('#loading').textContent = T('loading');
+    if (!rebuild) return;
+    if (detItem && det.classList.contains('on')) {
+      var act = cur && cur.dataset ? cur.dataset.act : '';
+      renderDetails();
+      if (act) focus($('[data-act="' + act + '"]', det) || cur);
+    }
+    var keep = cur;
+    if (screen === 'home') buildHome().then(function () { if (keep && keep.isConnected) focus(keep); });
+    else if (screen === 'browse') {
+      if (B.type === 'search' || B.type === 'cw' || B.type === 'list') openBrowse(B.type, B.q);
+      else { renderBrowse(); var t = B.type; B.page = 0; loadPage(true); }
+    }
+    if (keep && keep.closest && keep.closest('#top')) focus(keep);
   }
 
   // ========================================================= screens
@@ -385,11 +516,12 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     $('#t-movie').classList.toggle('on', name === 'browse' && B.type === 'movie');
     $('#t-serial').classList.toggle('on', name === 'browse' && B.type === 'serial');
     $('#t-cw').classList.toggle('on', name === 'browse' && B.type === 'cw');
+    $('#t-list').classList.toggle('on', name === 'browse' && B.type === 'list');
   }
 
   function msg(body, text, retry) {
-    body.innerHTML = '<div class="msg">' + esc(text) + '<br><span class="btn f" data-act="retry">თავიდან ცდა</span>' +
-      '<span class="btn f" data-act="site">ვებსაიტის გახსნა</span></div>';
+    body.innerHTML = '<div class="msg">' + esc(text) + '<br><span class="btn f" data-act="retry">' + esc(T('retry')) + '</span>' +
+      '<span class="btn f" data-act="site">' + esc(T('site')) + '</span></div>';
     $('[data-act=retry]', body).__run = retry;
   }
 
@@ -397,15 +529,15 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   var H = { rows: [] };
   function buildHome() {
     var body = $('#home .body');
-    body.innerHTML = '<div class="msg">იტვირთება…</div>';
+    body.innerHTML = '<div class="msg">' + esc(T('loading')) + '</div>';
     H.rows = [];
     var defs = [
       { key: 'new', load: function () { return loadNew(); } },
-      { key: 'movie', title: 'ფილმები', type: 'movie' },
-      { key: 'serial', title: 'სერიალები', type: 'serial' }
+      { key: 'movie', title: T('movies'), type: 'movie' },
+      { key: 'serial', title: T('series'), type: 'serial' }
     ];
     return Promise.all(defs.map(function (d) {
-      if (d.load) return d.load().then(function (r) { return { key: d.key, title: r.title, items: r.items }; });
+      if (d.load) return d.load().then(function (r) { return { key: d.key, title: T('newRow') || r.title, items: r.items }; });
       return loadList(d.type, {}, 1).then(function (r) {
         return { key: d.key, title: d.title, items: r.items, type: d.type, page: 1, pages: r.pages };
       });
@@ -426,7 +558,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       if (!H.rows.length) throw new Error('empty');
       renderCwRow();
     }).catch(function (e) {
-      msg(body, 'ვერ ჩაიტვირთა (' + e.message + ')', buildHome);
+      msg(body, T('loadFail') + ' (' + e.message + ')', buildHome);
     });
   }
 
@@ -458,38 +590,39 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     var body = $('#browse .body');
     var bar = '';
     if (B.type === 'search') {
-      bar = '<div class="line bar filters"><span class="btn" style="background:none;padding-left:0">ძებნა: <b>' + esc(B.q) + '</b></span>' +
+      bar = '<div class="line bar filters"><span class="btn" style="background:none;padding-left:0">' + esc(T('searchFor')) + ' <b>' + esc(B.q) + '</b></span>' +
         '<span class="note"></span></div>';
-    } else if (B.type === 'cw') {
-      bar = '<div class="line bar filters"><span class="btn" style="background:none;padding-left:0"><b>განაგრძე ყურება</b></span>' +
+    } else if (B.type === 'cw' || B.type === 'list') {
+      bar = '<div class="line bar filters"><span class="btn" style="background:none;padding-left:0"><b>' + esc(T(B.type === 'cw' ? 'cwRow' : 'mylist')) + '</b></span>' +
         '<span class="note"></span></div>';
     } else {
       bar = '<div class="line bar filters">' + (B.filters || []).map(function (f, i) {
         var v = B.params[f.name], o = f.opts.filter(function (x) { return x.v === v; })[0];
-        return '<span class="btn f" data-filter="' + i + '">' + esc(f.label) + (o ? '<small>' + esc(o.t) + '</small>' : '') + '</span>';
-      }).join('') + (Object.keys(B.params).length ? '<span class="btn f" data-act="clear">გასუფთავება</span>' : '') +
+        return '<span class="btn f" data-filter="' + i + '">' + esc(T(f.label)) + (o ? '<small>' + esc(o.t) + '</small>' : '') + '</span>';
+      }).join('') + (Object.keys(B.params).length ? '<span class="btn f" data-act="clear">' + esc(T('clear')) + '</span>' : '') +
         '<span class="note"></span></div>';
     }
-    body.innerHTML = bar + '<div class="gridwrap"><div class="msg">იტვირთება…</div></div>';
+    body.innerHTML = bar + '<div class="gridwrap"><div class="msg">' + esc(T('loading')) + '</div></div>';
   }
 
   function loadPage(first) {
-    if (B.type === 'cw') {
+    if (B.type === 'cw' || B.type === 'list') {
       if (!first) return Promise.resolve();
-      var wrap = $('#browse .gridwrap'), list = cwAll(), line = null;
-      wrap.innerHTML = list.length ? '' : '<div class="msg">ჯერ არაფერი გიყურებიათ. დაიწყე ფილმი და აქ გამოჩნდება.</div>';
+      var isCw = B.type === 'cw';
+      var wrap = $('#browse .gridwrap'), list = isCw ? cwAll() : myList(), line = null;
+      wrap.innerHTML = list.length ? '' : '<div class="msg">' + esc(T(isCw ? 'cwEmpty' : 'listEmpty')) + '</div>';
       list.forEach(function (x) {
         if (!line || line.children.length >= COLS) {
           line = document.createElement('div');
           line.className = 'line grid';
           wrap.appendChild(line);
         }
-        line.appendChild(cardEl(x.item, x));
+        line.appendChild(cardEl(x.item, isCw ? x : null));
       });
-      $('#browse .note').textContent = list.length ? list.length + ' სათაური' : '';
+      $('#browse .note').textContent = list.length ? list.length + ' ' + T('titles') : '';
       B.page = B.pages = 1;
       var c = $('#browse .card');
-      focus(c || $('#t-cw'));
+      focus(c || $(isCw ? '#t-cw' : '#t-list'));
       return Promise.resolve();
     }
     if (B.loading || (!first && B.page >= B.pages)) return Promise.resolve();
@@ -502,7 +635,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       B.page = want;
       B.pages = res.pages;
       var wrap = $('#browse .gridwrap');
-      if (first) wrap.innerHTML = res.items.length ? '' : '<div class="msg">ვერაფერი მოიძებნა</div>';
+      if (first) wrap.innerHTML = res.items.length ? '' : '<div class="msg">' + esc(T('notFound')) + '</div>';
       var lastLine = $$('.grid', wrap).pop();
       res.items.forEach(function (it) {
         if (!lastLine || lastLine.children.length >= COLS) {
@@ -513,23 +646,23 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
         lastLine.appendChild(cardEl(it));
       });
       var note = $('#browse .note');
-      if (note) note.textContent = 'გვერდი ' + B.page + ' / ' + B.pages;
+      if (note) note.textContent = T('page') + ' ' + B.page + ' / ' + B.pages;
       if (first) {
         var c = $('#browse .card');
         if (c) focus(c);
       }
     }).catch(function (e) {
       if (token !== B) return;
-      if (first) msg($('#browse .gridwrap'), 'ვერ ჩაიტვირთა (' + e.message + ')', function () { openBrowse(B.type, B.q); });
+      if (first) msg($('#browse .gridwrap'), T('loadFail') + ' (' + e.message + ')', function () { openBrowse(B.type, B.q); });
     }).then(function () { if (token === B) B.loading = false; });
   }
 
   function pickFilter(i) {
     var f = B.filters[i], curV = B.params[f.name];
-    var list = [{ t: 'ყველა', cur: !curV, run: function () { setFilter(f.name, ''); } }].concat(f.opts.map(function (o) {
+    var list = [{ t: T('all'), cur: !curV, run: function () { setFilter(f.name, ''); } }].concat(f.opts.map(function (o) {
       return { t: o.t, cur: o.v === curV, run: function () { setFilter(f.name, o.v); } };
     }));
-    openOverlay(f.label, list);
+    openOverlay(T(f.label), list);
   }
   function setFilter(name, v) {
     if (name) { if (v) B.params[name] = v; else delete B.params[name]; }
@@ -560,33 +693,34 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       findTrailer(it);
     }).catch(function (e) {
       if (detItem !== it) return;
-      $('.plot', det).textContent = 'ვერ ჩაიტვირთა (' + e.message + ')';
+      $('.plot', det).textContent = T('loadFail') + ' (' + e.message + ')';
     });
   }
   function renderDetails() {
     var it = detItem, d = detData;
     var facts = '';
     if (d) ['ჟანრი', 'რეჟისორი', 'ქვეყანა', 'სტუდია'].forEach(function (k) {
-      if (d.facts[k]) facts += '<div><b>' + esc(k) + ':</b> ' + esc(d.facts[k]) + '</div>';
+      if (d.facts[k]) facts += '<div><b>' + esc(T(FACT_KEYS[k])) + ':</b> ' + esc(d.facts[k]) + '</div>';
     });
     $('.txt', det).innerHTML = '<h1>' + esc(it.title) + '</h1><div class="en">' + esc(it.en) + '</div>' +
       '<div class="meta">' + metaHtml(it, d) + '</div><div class="facts">' + facts + '</div>' +
-      '<div class="plot">' + esc(d ? d.plot : 'იტვირთება…') + '</div>' +
+      '<div class="plot">' + esc(d ? d.plot : T('loading')) + '</div>' +
       detButtons(it);
     focus($('[data-act=resume]', det) || $('[data-act=play]', det));
   }
   function detButtons(it) {
     var cw = cwGet(it.url);
-    var tr = trailers.get(it.url) ? '<span class="btn f" data-act="trailer">🎬 თრეილერი</span>' : '';
+    var tr = trailers.get(it.url) ? '<span class="btn f" data-act="trailer">' + esc(T('trailer')) + '</span>' : '';
+    var ml = '<span class="btn f" data-act="mylist">' + esc(T(inMyList(it.url) ? 'inList' : 'addList')) + '</span>';
     if (cw && (cw.t > 30 || cw.ep)) {
       var where = [epLabel(cw.ep), cw.t > 30 ? fmtTime(cw.t) : ''].filter(Boolean).join(' · ');
-      return '<div class="bar"><span class="btn play f" data-act="resume">▶ გაგრძელება <small>' + esc(where) + '</small></span>' +
-        '<span class="btn f" data-act="play">↺ თავიდან</span>' + tr +
-        '<span class="btn f" data-act="forget">სიიდან წაშლა</span>' +
-        '<span class="btn f" data-act="back">უკან</span></div>';
+      return '<div class="bar"><span class="btn play f" data-act="resume">' + esc(T('resume')) + ' <small>' + esc(where) + '</small></span>' +
+        '<span class="btn f" data-act="play">' + esc(T('fromStart')) + '</span>' + tr + ml +
+        '<span class="btn f" data-act="forget">' + esc(T('forget')) + '</span>' +
+        '<span class="btn f" data-act="back">' + esc(T('back')) + '</span></div>';
     }
-    return '<div class="bar"><span class="btn play f" data-act="play">▶ ყურება</span>' + tr +
-      '<span class="btn f" data-act="back">უკან</span></div>';
+    return '<div class="bar"><span class="btn play f" data-act="play">' + esc(T('watch')) + '</span>' + tr + ml +
+      '<span class="btn f" data-act="back">' + esc(T('back')) + '</span></div>';
   }
 
   // ---------- trailers (YouTube)
@@ -633,7 +767,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   }
   function closeDetails() {
     renderCwRow();
-    if (screen === 'browse' && B.type === 'cw') { closeDetailsTo(); loadPage(true); return; }
+    if (screen === 'browse' && (B.type === 'cw' || B.type === 'list')) { closeDetailsTo(); loadPage(true); return; }
     closeDetailsTo();
   }
   function closeDetailsTo() {
@@ -649,7 +783,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   function post(m) { try { playing.contentWindow.postMessage({ __tv: m }, '*'); } catch (e) {} }
   // resume: { t: seconds, ep: '1-3' } from Continue Watching, or nothing to start from the beginning
   function openPlayer(resume) {
-    if (!detData || !detData.embed) { $('.plot', det).textContent = 'ვიდეო ვერ მოიძებნა.'; return; }
+    if (!detData || !detData.embed) { $('.plot', det).textContent = T('noVideo'); return; }
     clearTimeout(pvTimer);
     var f = document.createElement('iframe');
     f.id = 'player';
@@ -660,7 +794,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       src = src.replace(/([?&]season=)\d+/, '$1' + m[1]).replace(/([?&]episode=)\d+/, '$1' + m[2]);
     }
     f.src = src;
-    startMsg = { pstart: 1, resume: resume ? { t: resume.t || 0, ep: resume.ep || '' } : null };
+    startMsg = { pstart: 1, resume: resume ? { t: resume.t || 0, ep: resume.ep || '' } : null, lang: LANG, audio: MLANG };
     f.addEventListener('load', function () { post(startMsg); });
     playing = f;
     playingItem = detItem;
@@ -694,18 +828,21 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 
   // ---------- overlay list (filters)
   var OV = null;
-  function openOverlay(title, list) {
+  // list items: { t: text, cur: true for the current choice, run: fn, info: true for a plain line, icon: html }
+  function openOverlay(title, list, asDrop) {
     var sel = 0;
     list.forEach(function (x, i) { if (x.cur) sel = i; });
-    OV = { list: list, sel: sel, ret: cur };
+    OV = { list: list, sel: sel, ret: OV ? OV.ret : cur };
     $('h4', ov).textContent = title;
+    ov.classList.toggle('drop', !!asDrop);
     ov.classList.add('on');
     renderOverlay();
   }
   function renderOverlay() {
     var box = $('.items', ov);
     box.innerHTML = OV.list.map(function (x, i) {
-      return '<div class="it' + (i === OV.sel ? ' sel' : '') + '">' + (x.cur ? '✓ ' : '') + esc(x.t) + '</div>';
+      return '<div class="it' + (x.info ? ' info' : '') + (i === OV.sel ? ' sel' : '') + '">' + (x.cur ? '✓ ' : '') +
+        (x.icon || '') + esc(x.t) + '</div>';
     }).join('');
     var s = $('.sel', box);
     if (s) box.scrollTop = s.offsetTop - box.clientHeight / 2 + s.offsetHeight / 2;
@@ -815,9 +952,14 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     if (el.dataset.filter != null) { pickFilter(+el.dataset.filter); return; }
     var act = el.dataset.act;
     if (act === 'home') { show('home'); focus(firstCard()); }
-    else if (act === 'movie' || act === 'serial' || act === 'cw') openBrowse(act);
+    else if (act === 'movie' || act === 'serial' || act === 'cw' || act === 'list') openBrowse(act);
     else if (act === 'search') doSearch();
-    else if (act === 'update') { if (App && App.checkUpdate) App.checkUpdate(); }
+    else if (act === 'settings') settingsMenu();
+    else if (act === 'langmenu') langMenu();
+    else if (act === 'mylist') {
+      toggleMyList(detItem);
+      $('[data-act=mylist]', det).textContent = T(inMyList(detItem.url) ? 'inList' : 'addList');
+    }
     else if (act === 'clear') { B.params = {}; setFilter('', ''); }
     else if (act === 'play') openPlayer(null);
     else if (act === 'resume') openPlayer(cwGet(detItem.url));
@@ -883,6 +1025,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   if (!window.__tv) window.__tv = { key: UI.key, back: UI.back, pageReady: function () {} };
 
   // ============================================================== start
+  applyLang(false);
+  try { App && App.setLang && App.setLang(LANG); } catch (e) {}
   show('home');
   focus($('#t-home'));
   buildHome().then(function () {

@@ -489,6 +489,21 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void setLang(String lang) {
+            Updater.lang = lang == null ? "ka" : lang;
+        }
+
+        @JavascriptInterface
+        public String appVersion() {
+            try {
+                android.content.pm.PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
+                return pi.versionName;
+            } catch (Exception e) {
+                return "";
+            }
+        }
+
+        @JavascriptInterface
         public void checkUpdate() {
             ui.post(updater::checkNow);
         }

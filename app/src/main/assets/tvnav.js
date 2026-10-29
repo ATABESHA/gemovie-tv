@@ -185,7 +185,18 @@
   }
 
   var PL = { open: false, tile: 0, tiles: [], list: null, idle: null, tick: null,
-    plist: null, plistFile: null, started: false, audio: null };
+    plist: null, plistFile: null, started: false, audio: null, lang: 'ka', audioPref: '' };
+  var PT = {
+    ka: { pause: 'პაუზა', play: 'დაკვრა', next: 'შემდეგი', episodes: 'ეპიზოდები', audio: 'აუდიო', quality: 'ხარისხი',
+      subs: 'სუბტიტრები', off: 'გამორთული', speed: 'სიჩქარე', volume: 'ხმა', mute: 'ხმის გარეშე' },
+    ru: { pause: 'Пауза', play: 'Играть', next: 'Далее', episodes: 'Серии', audio: 'Аудио', quality: 'Качество',
+      subs: 'Субтитры', off: 'Выкл.', speed: 'Скорость', volume: 'Громкость', mute: 'Без звука' },
+    en: { pause: 'Pause', play: 'Play', next: 'Next', episodes: 'Episodes', audio: 'Audio', quality: 'Quality',
+      subs: 'Subtitles', off: 'Off', speed: 'Speed', volume: 'Volume', mute: 'Muted' }
+  };
+  function pt(k) { return (PT[PL.lang] || PT.ka)[k] || PT.ka[k]; }
+  // Audio track names in the player -> language code
+  var AUDIO_RX = { ka: /georgian|ქართ|\bgeo\b|\bka\b/i, ru: /russian|рус|\brus\b|\bru\b/i, en: /english|англ|\beng\b|\ben\b/i };
 
   function loadPlaylist() {
     var file = api('file');
@@ -218,7 +229,6 @@
 
   function setAudio(i, label) {
     PL.audio = label;
-    pref('a', label);
     var p = pjs();
     try { p.api('audiotrack', i); } catch (e) {
       // The player throws if its audio list is still loading: try once more.
@@ -233,20 +243,20 @@
 
   function tiles() {
     var t = [], playing = !!api('playing');
-    t.push({ name: playing ? '❚❚' : '▶', value: playing ? 'პაუზა' : 'დაკვრა', run: togglePlay });
+    t.push({ name: playing ? '❚❚' : '▶', value: playing ? pt('pause') : pt('play'), run: togglePlay });
 
     var ce = currentEpisode();
     if (ce) {
       var nx = ce.all[ce.i + 1];
-      if (nx) t.push({ name: 'შემდეგი', value: nx.season + ' · ' + nx.title,
+      if (nx) t.push({ name: pt('next'), value: nx.season + ' · ' + nx.title,
         run: function () { api('play', 'id:' + nx.id); } });
-      t.push({ name: 'ეპიზოდები', value: ce.e.season + ' · ' + ce.e.title, list: episodesList });
+      t.push({ name: pt('episodes'), value: ce.e.season + ' · ' + ce.e.title, list: episodesList });
     }
 
     var au = arr(api('audiotracks'));
     if (au.length > 1) {
       var ca = api('audiotrack') || PL.audio || pref('a') || '';
-      t.push({ name: 'აუდიო', value: ca, list: function () {
+      t.push({ name: pt('audio'), value: ca, list: function () {
         return au.map(function (x, i) {
           return { label: x, cur: x === ca, run: function () { setAudio(i, x); } };
         });
@@ -256,7 +266,7 @@
     var q = arr(api('qualities'));
     if (q.length > 1) {
       var cq = api('quality');
-      t.push({ name: 'ხარისხი', value: cq || '', list: function () {
+      t.push({ name: pt('quality'), value: cq || '', list: function () {
         return q.map(function (x, i) {
           return { label: x, cur: x === cq, run: function () { api('quality', i); } };
         }).reverse();
@@ -266,8 +276,8 @@
     var su = arr(api('subtitles'));
     if (su.length) {
       var cs = SUB.label || api('subtitle'), on = su.indexOf(cs) >= 0;
-      t.push({ name: 'სუბტიტრები', value: on ? cs : 'გამორთული', list: function () {
-        return [{ label: 'გამორთული', cur: !on, run: function () { setSub(''); } }]
+      t.push({ name: pt('subs'), value: on ? cs : pt('off'), list: function () {
+        return [{ label: pt('off'), cur: !on, run: function () { setSub(''); } }]
           .concat(su.map(function (x) {
             return { label: x, cur: x === cs, run: function () { setSub(x); } };
           }));
@@ -277,7 +287,7 @@
     var sp = arr(api('speeds'));
     if (sp.length > 1) {
       var csp = +api('speed') || 1;
-      t.push({ name: 'სიჩქარე', value: csp + 'x', list: function () {
+      t.push({ name: pt('speed'), value: csp + 'x', list: function () {
         return sp.map(function (x) {
           return { label: x + 'x', cur: +x === csp, run: function () { api('speed', x); } };
         });
@@ -285,10 +295,10 @@
     }
 
     var vol = api('muted') ? 0 : Math.round((+api('volume') || 0) * 10) * 10;
-    t.push({ name: 'ხმა', value: vol ? vol + '%' : 'ხმის გარეშე', list: function () {
+    t.push({ name: pt('volume'), value: vol ? vol + '%' : pt('mute'), list: function () {
       var out = [];
       [100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0].forEach(function (v) {
-        out.push({ label: v ? v + '%' : 'ხმის გარეშე', cur: v === vol, run: function () {
+        out.push({ label: v ? v + '%' : pt('mute'), cur: v === vol, run: function () {
           if (v) { api('volume', v / 100); if (api('muted')) api('unmute'); } else api('mute');
         } });
       });
@@ -572,8 +582,13 @@
       var qi = -1, bh = 0;            // always the highest quality on offer
       q.forEach(function (x, j) { var h = parseInt(x, 10) || 0; if (h >= bh) { bh = h; qi = j; } });
       if (qi >= 0 && api('quality') !== q[qi]) api('quality', qi);
-      var a = pref('a'), ai = a ? arr(api('audiotracks')).indexOf(a) : -1;
-      if (ai >= 0 && api('audiotrack') !== a) setTimeout(function () { setAudio(ai, a); }, 1500);
+      // default movie language from the app's settings (Georgian unless changed)
+      var rx = AUDIO_RX[PL.audioPref], tracks = arr(api('audiotracks')), ai = -1;
+      if (rx) for (var k = 0; k < tracks.length; k++) { if (rx.test(tracks[k])) { ai = k; break; } }
+      if (ai >= 0 && api('audiotrack') !== tracks[ai]) {
+        var name = tracks[ai];
+        setTimeout(function () { setAudio(ai, name); }, 1500);
+      }
       var s = pref('s');
       if (s && arr(api('subtitles')).indexOf(s) >= 0) setSub(s);
     })();
@@ -1225,7 +1240,12 @@
     if (m.media) media(m.media, m.arg);
     else if (m.fskey) fsKey(m.fskey, m.repeat);
     else if (m.pkey) { if (!playerKey(m.pkey, m.repeat)) sendToFrames(m); }
-    else if (m.pstart) { playerStart(m.resume); sendToFrames(m); }
+    else if (m.pstart) {
+      if (m.lang) PL.lang = m.lang;
+      if (m.audio) PL.audioPref = m.audio;
+      playerStart(m.resume);
+      sendToFrames(m);
+    }
     else if (m.pstop) { playerStop(); sendToFrames(m); }
     else if (m.diag !== undefined) setDiag(m.diag);
     else if (m.hello && TOP) onFrameHello(ev.source);

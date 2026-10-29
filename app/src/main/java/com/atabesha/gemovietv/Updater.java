@@ -39,6 +39,13 @@ final class Updater {
     };
     private static final long CHECK_EVERY_MS = 6 * 60 * 60 * 1000L;
 
+    /** App language, set by the page: ka | ru | en */
+    static volatile String lang = "ka";
+
+    private static String t(String ka, String ru, String en) {
+        return "ru".equals(lang) ? ru : "en".equals(lang) ? en : ka;
+    }
+
     private final Activity act;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private volatile boolean busy;
@@ -65,9 +72,9 @@ final class Updater {
 
     /** The app's Update button: check now and always say what was found. */
     void checkNow() {
-        if (busy) { toast("განახლება უკვე მოწმდება…"); return; }
+        if (busy) { toast(t("განახლება უკვე მოწმდება…", "Обновление уже проверяется…", "Already checking…")); return; }
         lastCheck = SystemClock.elapsedRealtime();
-        toast("ვამოწმებ განახლებას…");
+        toast(t("ვამოწმებ განახლებას…", "Проверяю обновления…", "Checking for updates…"));
         check(true);
     }
 
@@ -94,8 +101,8 @@ final class Updater {
             }
             busy = false;
             if (manual) {
-                if (remote < 0) toast("GitHub-თან დაკავშირება ვერ მოხერხდა");
-                else toast("უკვე უახლესი ვერსიაა (build " + have + ")");
+                if (remote < 0) toast(t("GitHub-თან დაკავშირება ვერ მოხერხდა", "Не удалось связаться с GitHub", "Couldn't reach GitHub"));
+                else toast(t("უკვე უახლესი ვერსიაა", "Уже последняя версия", "You have the latest version") + " (build " + have + ")");
             }
         }, "update-check").start();
     }
@@ -112,16 +119,16 @@ final class Updater {
             return;
         }
         new AlertDialog.Builder(act)
-                .setTitle("ახალი ვერსია")
-                .setMessage("MyMovie-ს ახალი ვერსია (build " + remote + ") მზადაა. დავაყენო ახლა?")
-                .setPositiveButton("დაყენება", (d, w) -> download(apkUrl))
-                .setNegativeButton("მოგვიანებით", (d, w) -> busy = false)
+                .setTitle(t("ახალი ვერსია", "Новая версия", "Update available"))
+                .setMessage(t("MyMovie-ს ახალი ვერსია მზადაა. დავაყენო ახლა?", "Новая версия MyMovie готова. Установить сейчас?", "A new version of MyMovie is ready. Install it now?") + " (build " + remote + ")")
+                .setPositiveButton(t("დაყენება", "Установить", "Install"), (d, w) -> download(apkUrl))
+                .setNegativeButton(t("მოგვიანებით", "Позже", "Later"), (d, w) -> busy = false)
                 .setOnCancelListener(d -> busy = false)
                 .show();
     }
 
     private void download(String apkUrl) {
-        toast("ახალი ვერსია იტვირთება…");
+        toast(t("ახალი ვერსია იტვირთება…", "Загружаю новую версию…", "Downloading update…"));
         new Thread(() -> {
             try {
                 File dir = new File(act.getCacheDir(), "updates");
@@ -142,7 +149,7 @@ final class Updater {
             } catch (Exception e) {
                 ui.post(() -> {
                     busy = false;
-                    toast("ჩამოტვირთვა ვერ მოხერხდა");
+                    toast(t("ჩამოტვირთვა ვერ მოხერხდა", "Не удалось загрузить", "Download failed"));
                 });
             }
         }, "update-download").start();
@@ -156,7 +163,7 @@ final class Updater {
         if (!canInstall()) {
             // Android asks once whether this app may install updates.
             pendingApk = apk;
-            toast("მიეცით MyMovie-ს აპების დაყენების ნებართვა და დააჭირეთ Back-ს");
+            toast(t("მიეცით MyMovie-ს აპების დაყენების ნებართვა და დააჭირეთ Back-ს", "Разрешите MyMovie устанавливать приложения и нажмите «Назад»", "Allow MyMovie to install apps, then press Back"));
             try {
                 act.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                         Uri.parse("package:" + act.getPackageName())));
@@ -172,7 +179,7 @@ final class Updater {
         try {
             act.startActivity(i);
         } catch (Exception e) {
-            toast("დამყენებელი ვერ გაიხსნა");
+            toast(t("დამყენებელი ვერ გაიხსნა", "Не удалось открыть установщик", "Can't open the installer"));
         }
     }
 
