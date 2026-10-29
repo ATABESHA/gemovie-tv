@@ -478,6 +478,11 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void checkUpdate() {
+            ui.post(updater::checkNow);
+        }
+
+        @JavascriptInterface
         public void setFsControls(boolean value) {
             fsControls = value;
         }

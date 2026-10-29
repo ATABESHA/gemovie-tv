@@ -67,7 +67,7 @@ jobs:
         run: |
           cp gemovie-tv.apk gemovie-tv-test.apk
           gh release delete test --yes --cleanup-tag || true
-          gh release create test gemovie-tv-test.apk --prerelease --target "$GITHUB_SHA" \
+          gh release create test gemovie-tv-test.apk version.txt --prerelease --target "$GITHUB_SHA" \
             --title "TEST build ${{ github.run_number }} (not on the TV)" \
             --notes "Built from ${GITHUB_SHA::7}. For testing in BlueStacks. The TV ignores this."
 

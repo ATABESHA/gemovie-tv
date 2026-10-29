@@ -25,11 +25,18 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Checks the GitHub "latest" release for a newer build and installs it.
- * The release holds gemovie-tv.apk and version.txt (the build number).
+ * Checks GitHub for a newer build and installs it. Two release channels are checked,
+ * and the newer one wins:
+ *   "latest" - the TV release        (gemovie-tv.apk + version.txt)
+ *   "test"   - every build of main    (gemovie-tv-test.apk + version.txt)
+ * Runs by itself at start-up (then at most every 6 h) and from the app's Update button.
  */
 final class Updater {
-    static final String BASE = "https://github.com/ATABESHA/gemovie-tv/releases/download/latest/";
+    static final String REPO = "https://github.com/ATABESHA/gemovie-tv/releases/download/";
+    static final String[][] CHANNELS = {
+            {"latest", "gemovie-tv.apk"},
+            {"test", "gemovie-tv-test.apk"},
+    };
     private static final long CHECK_EVERY_MS = 6 * 60 * 60 * 1000L;
 
     private final Activity act;
@@ -53,18 +60,43 @@ final class Updater {
         long now = SystemClock.elapsedRealtime();
         if (busy || now - lastCheck < CHECK_EVERY_MS) return;
         lastCheck = now;
+        check(false);
+    }
+
+    /** The app's Update button: check now and always say what was found. */
+    void checkNow() {
+        if (busy) { toast("განახლება უკვე მოწმდება…"); return; }
+        lastCheck = SystemClock.elapsedRealtime();
+        toast("ვამოწმებ განახლებას…");
+        check(true);
+    }
+
+    private void check(boolean manual) {
         busy = true;
         new Thread(() -> {
-            try {
-                int remote = Integer.parseInt(readText(BASE + "version.txt").trim());
-                if (remote > currentVersion()) {
-                    ui.post(() -> ask(remote));
-                    return;
+            int best = -1;
+            String bestApk = null;
+            for (String[] ch : CHANNELS) {
+                try {
+                    int v = Integer.parseInt(readText(REPO + ch[0] + "/version.txt").trim());
+                    if (v > best) { best = v; bestApk = REPO + ch[0] + "/" + ch[1]; }
+                } catch (Exception ignored) {
+                    // This channel has nothing yet, or we're offline.
                 }
-            } catch (Exception ignored) {
-                // Offline or no release yet: try again next time.
+            }
+            int current;
+            try { current = currentVersion(); } catch (Exception e) { current = 0; }
+            final int remote = best, have = current;
+            final String apkUrl = bestApk;
+            if (remote > have && apkUrl != null) {
+                ui.post(() -> ask(remote, apkUrl));
+                return;
             }
             busy = false;
+            if (manual) {
+                if (remote < 0) toast("GitHub-თან დაკავშირება ვერ მოხერხდა");
+                else toast("უკვე უახლესი ვერსიაა (build " + have + ")");
+            }
         }, "update-check").start();
     }
 
@@ -74,28 +106,28 @@ final class Updater {
         return Build.VERSION.SDK_INT >= 28 ? (int) pi.getLongVersionCode() : pi.versionCode;
     }
 
-    private void ask(int remote) {
+    private void ask(int remote, String apkUrl) {
         if (act.isFinishing()) {
             busy = false;
             return;
         }
         new AlertDialog.Builder(act)
-                .setTitle("Update available")
-                .setMessage("A new version of MyMovie (build " + remote + ") is ready. Install it now?")
-                .setPositiveButton("Install", (d, w) -> download())
-                .setNegativeButton("Later", (d, w) -> busy = false)
+                .setTitle("ახალი ვერსია")
+                .setMessage("MyMovie-ს ახალი ვერსია (build " + remote + ") მზადაა. დავაყენო ახლა?")
+                .setPositiveButton("დაყენება", (d, w) -> download(apkUrl))
+                .setNegativeButton("მოგვიანებით", (d, w) -> busy = false)
                 .setOnCancelListener(d -> busy = false)
                 .show();
     }
 
-    private void download() {
-        toast("Downloading update…");
+    private void download(String apkUrl) {
+        toast("ახალი ვერსია იტვირთება…");
         new Thread(() -> {
             try {
                 File dir = new File(act.getCacheDir(), "updates");
                 if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("no cache dir");
                 File apk = new File(dir, "gemovie-tv.apk");
-                HttpURLConnection c = open(BASE + "gemovie-tv.apk");
+                HttpURLConnection c = open(apkUrl);
                 try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(apk)) {
                     byte[] buf = new byte[64 * 1024];
                     int n;
@@ -110,7 +142,7 @@ final class Updater {
             } catch (Exception e) {
                 ui.post(() -> {
                     busy = false;
-                    toast("Update download failed");
+                    toast("ჩამოტვირთვა ვერ მოხერხდა");
                 });
             }
         }, "update-download").start();
@@ -124,7 +156,7 @@ final class Updater {
         if (!canInstall()) {
             // Android asks once whether this app may install updates.
             pendingApk = apk;
-            toast("Allow MyMovie to install apps, then press Back");
+            toast("მიეცით MyMovie-ს აპების დაყენების ნებართვა და დააჭირეთ Back-ს");
             try {
                 act.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                         Uri.parse("package:" + act.getPackageName())));
@@ -140,7 +172,7 @@ final class Updater {
         try {
             act.startActivity(i);
         } catch (Exception e) {
-            toast("Can't open the installer");
+            toast("დამყენებელი ვერ გაიხსნა");
         }
     }
 

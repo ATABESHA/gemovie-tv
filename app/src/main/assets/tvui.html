@@ -26,6 +26,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 #q::placeholder{color:var(--dim)}
 #go{height:46px;padding:0 24px;border-radius:24px;background:rgba(255,255,255,.12);font-size:17px;
   display:flex;align-items:center}
+#upd{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.12);font-size:24px;
+  display:flex;align-items:center;justify-content:center;margin-left:4px}
 #top .fx{background:#fff!important;color:#000!important}
 #top .logo.fx{background:rgba(255,255,255,.9)!important}
 #q.fx{background:rgba(255,255,255,.22)!important;color:#fff!important;box-shadow:0 0 0 3px #fff}
@@ -124,6 +126,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     <div class="tab f" data-act="cw" id="t-cw">განაგრძე ყურება</div>
     <input id="q" class="f" type="text" placeholder="მოძებნე ფილმები, სერიალები..." autocomplete="off">
     <div id="go" class="f" data-act="search">ძებნა</div>
+    <div id="upd" class="f" data-act="update" title="განახლება">⟳</div>
   </div>
 </div>
 
@@ -765,6 +768,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     if (act === 'home') { show('home'); focus(firstCard()); }
     else if (act === 'movie' || act === 'serial' || act === 'cw') openBrowse(act);
     else if (act === 'search') doSearch();
+    else if (act === 'update') { if (App && App.checkUpdate) App.checkUpdate(); }
     else if (act === 'clear') { B.params = {}; setFilter('', ''); }
     else if (act === 'play') openPlayer(null);
     else if (act === 'resume') openPlayer(cwGet(detItem.url));
