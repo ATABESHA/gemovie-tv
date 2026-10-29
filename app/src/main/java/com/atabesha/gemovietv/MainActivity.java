@@ -477,6 +477,35 @@ public class MainActivity extends Activity {
             return p == null ? "unknown" : p.versionName;
         }
 
+        /**
+         * Title and description in the app language (ru/en): TMDB's own page for the movie,
+         * machine translation of the Georgian text for whatever TMDB doesn't have.
+         * Answers the page with __tvui.onLocal(key, {title, plot, facts:[...]}).
+         */
+        @JavascriptInterface
+        public void localize(String key, String kind, String tmdbId, String lang, String geoPlot, String geoFacts) {
+            new Thread(() -> {
+                String title = "", plot = "";
+                if (tmdbId != null && !tmdbId.isEmpty()) {
+                    String[] tp = tmdbTexts("tv".equals(kind) ? "tv" : "movie", tmdbId, lang);
+                    if (tp != null) { title = tp[0]; plot = tp[1]; }
+                }
+                if (plot.isEmpty() && geoPlot != null && !geoPlot.isEmpty()) plot = translate(geoPlot, lang);
+                String facts = geoFacts == null || geoFacts.isEmpty() ? "" : translate(geoFacts, lang);
+                org.json.JSONObject o = new org.json.JSONObject();
+                try {
+                    o.put("title", title);
+                    o.put("plot", plot);
+                    org.json.JSONArray fa = new org.json.JSONArray();
+                    if (!facts.isEmpty()) for (String f : facts.split("\n")) fa.put(f.trim());
+                    o.put("facts", fa);
+                } catch (Exception ignored) {
+                }
+                String js = "window.__tvui&&__tvui.onLocal&&__tvui.onLocal(" + org.json.JSONObject.quote(key) + "," + o + ")";
+                ui.post(() -> js(js, null));
+            }, "localize").start();
+        }
+
         /** Finds a trailer on YouTube (the first search result) and tells the page. */
         @JavascriptInterface
         public void findTrailer(String query, String key) {
@@ -533,6 +562,80 @@ public class MainActivity extends Activity {
             java.util.regex.Pattern.compile("\"videoRenderer\":\\{\"videoId\":\"([\\w-]{11})\"");
     private static final java.util.regex.Pattern YT_ANY =
             java.util.regex.Pattern.compile("\"videoId\":\"([\\w-]{11})\"");
+
+    // ------------------------------------------------ texts in other languages
+
+    private static String httpGet(String url, int maxChars) {
+        java.net.HttpURLConnection c = null;
+        try {
+            c = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+            c.setConnectTimeout(8000);
+            c.setReadTimeout(10000);
+            c.setRequestProperty("User-Agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36");
+            c.setRequestProperty("Accept-Language", "en-US,en;q=0.9,ru;q=0.8");
+            if (c.getResponseCode() != 200) return null;
+            StringBuilder sb = new StringBuilder();
+            try (java.io.BufferedReader r = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
+                char[] buf = new char[16384];
+                int n;
+                while ((n = r.read(buf)) > 0 && sb.length() < maxChars) sb.append(buf, 0, n);
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (c != null) c.disconnect();
+        }
+    }
+
+    private static String metaContent(String html, String prop) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile(
+                "<meta[^>]+(?:property|name)=\"" + java.util.regex.Pattern.quote(prop) + "\"[^>]+content=\"([^\"]*)\"")
+                .matcher(html);
+        return m.find() ? unescapeHtml(m.group(1)).trim() : "";
+    }
+
+    private static String unescapeHtml(String s) {
+        return s.replace("&quot;", "\"").replace("&#39;", "'").replace("&apos;", "'")
+                .replace("&lt;", "<").replace("&gt;", ">").replace("&nbsp;", " ").replace("&amp;", "&");
+    }
+
+    /** TMDB's page in the wanted language: { title, overview } ("" when it has none). */
+    static String[] tmdbTexts(String kind, String id, String lang) {
+        String loc = "ru".equals(lang) ? "ru-RU" : "en-US";
+        String html = httpGet("https://www.themoviedb.org/" + kind + "/" + id + "?language=" + loc, 1_500_000);
+        if (html == null) return null;
+        String title = metaContent(html, "og:title").replaceAll("\\s*\\(\\d{4}\\)\\s*$", "");
+        String plot = "";
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile(
+                "<div class=\"overview\"[^>]*>\\s*<p>(.*?)</p>", java.util.regex.Pattern.DOTALL).matcher(html);
+        if (m.find()) plot = unescapeHtml(m.group(1).replaceAll("<[^>]+>", "")).trim();
+        if (plot.isEmpty()) plot = metaContent(html, "og:description");
+        // TMDB's "no translation yet" notice is not a description
+        if (plot.contains("We don't have an overview") || plot.contains("нет описания") || plot.contains("нет перевода")) plot = "";
+        return new String[]{title, plot};
+    }
+
+    /** Machine translation from Georgian (Google's free web endpoint). "" if it fails. */
+    static String translate(String text, String lang) {
+        try {
+            String url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=ka&tl="
+                    + ("ru".equals(lang) ? "ru" : "en") + "&dt=t&q=" + java.net.URLEncoder.encode(text, "UTF-8");
+            String body = httpGet(url, 200_000);
+            if (body == null) return "";
+            org.json.JSONArray parts = new org.json.JSONArray(body).getJSONArray(0);
+            StringBuilder out = new StringBuilder();
+            for (int i = 0; i < parts.length(); i++) {
+                org.json.JSONArray p = parts.optJSONArray(i);
+                if (p != null && !p.isNull(0)) out.append(p.getString(0));
+            }
+            return out.toString().trim();
+        } catch (Exception e) {
+            return "";
+        }
+    }
 
     /** YouTube search page, first video result. Runs on a background thread. */
     private static String youtubeSearch(String query) {

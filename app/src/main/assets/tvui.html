@@ -110,6 +110,10 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 #ov .it.info{color:var(--dim);font-size:16px}
 #ov .it.info.sel{background:rgba(255,255,255,.18);color:#fff}
 #ov .it svg{width:26px;height:17px;vertical-align:-2px;margin-right:12px;border-radius:2px}
+#ov .it.head{color:var(--dim);font-size:15px;padding:14px 26px 6px;display:flex;align-items:center;gap:4px}
+#ov .it.head svg.ic{width:26px;height:26px;border-radius:0;color:#fff;margin-right:10px}
+#ov .it .ok{color:#4ade80;margin-left:8px}
+#ov .it.sel .ok{color:#16a34a}
 
 /* ---------- player: only this is shown while a movie plays */
 #player{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#000;z-index:30}
@@ -328,6 +332,11 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       if (ym) trailers.set(item.url, ym[1]);
       return { plot: plot, facts: facts, imdb: txt(doc, '.fullimdb') || item.rating,
         embed: fr ? (fr.getAttribute('src') || fr.getAttribute('data-src')) : '',
+        tmdb: (function () {
+          var src = fr ? (fr.getAttribute('src') || fr.getAttribute('data-src') || '') : '';
+          var m = /[?&]tmdb_id=(\d+)/.exec(src);
+          return m ? { id: m[1], kind: /type=serial/.test(src) || item.serial ? 'tv' : 'movie' } : null;
+        })(),
         bg: og ? tmdb(og.content, 'w1280') : item.bg, title: item.title || h1 };
     });
     detCache.set(item.url, p);
@@ -348,7 +357,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     c.innerHTML = '<div class="img">' + (it.poster ? '<img loading="lazy" decoding="async" src="' + esc(it.poster) + '" alt="">' : '') +
       (badge ? '<span class="badge">' + esc(badge) + '</span>' : '') +
       (pct ? '<span class="prog"><i style="width:' + pct + '%"></i></span>' : '') +
-      '</div><div class="t">' + esc(it.title) + '</div>';
+      '</div><div class="t">' + esc(cardTitle(it)) + '</div>';
     items.set(c, it);
     return c;
   }
@@ -364,12 +373,42 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     return m.join('');
   }
 
+  // ---------- titles and descriptions in the app language
+  // ge.movie writes them in Georgian; for Russian/English the app asks TMDB (the movie
+  // database the player itself uses) and machine-translates what TMDB lacks.
+  var LOC = new Map(), locWait = {};
+  function cardTitle(it) { return LANG === 'ka' ? it.title : (it.en || it.title); }
+  function factOrder(d) { return ['ჟანრი', 'რეჟისორი', 'ქვეყანა', 'სტუდია'].filter(function (k) { return d && d.facts[k]; }); }
+  function localize(it, d, cb) {
+    if (LANG === 'ka' || !d) { cb(null); return; }
+    var key = it.url + '|' + LANG;
+    if (LOC.has(key)) { cb(LOC.get(key)); return; }
+    (locWait[key] = locWait[key] || []).push(cb);
+    if (locWait[key].length > 1) return;                 // already asked
+    if (!App || !App.localize) { UI.onLocal(key, null); return; }
+    var facts = factOrder(d).map(function (k) { return d.facts[k]; }).join('\n');
+    App.localize(key, d.tmdb ? d.tmdb.kind : '', d.tmdb ? d.tmdb.id : '', LANG, d.plot || '', facts);
+  }
+  function localDone(key, data) {
+    var loc = data ? { title: data.title || '', plot: data.plot || '', facts: data.facts || [] } : null;
+    LOC.set(key, loc);
+    if (LOC.size > 300) LOC.delete(LOC.keys().next().value);
+    (locWait[key] || []).forEach(function (cb) { cb(loc); });
+    delete locWait[key];
+  }
+  function shownTitle(it, loc) { return LANG === 'ka' ? it.title : (loc && loc.title) || it.en || it.title; }
+  function shownSub(it, loc) {
+    if (LANG === 'ka') return it.en;
+    var main = shownTitle(it, loc);
+    return [it.en, it.title].filter(function (x) { return x && x !== main; })[0] || '';
+  }
+
   // Preview area: shows the focused title, then its description a moment later.
   var pvTimer = null, pvItem = null;
   function showPreview(it) {
     pvItem = it;
-    $('h1', pv).textContent = it.title;
-    $('.en', pv).textContent = it.en;
+    $('h1', pv).textContent = shownTitle(it, LOC.get(it.url + '|' + LANG));
+    $('.en', pv).textContent = shownSub(it, LOC.get(it.url + '|' + LANG));
     $('.meta', pv).innerHTML = metaHtml(it, null);
     $('.plot', pv).textContent = '';
     setPvBg(it.bg);
@@ -378,8 +417,14 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       loadDetails(it).then(function (d) {
         if (pvItem !== it || playing) return;
         $('.meta', pv).innerHTML = metaHtml(it, d);
-        $('.plot', pv).textContent = d.plot;
+        $('.plot', pv).textContent = LANG === 'ka' ? d.plot : '';
         if (d.bg && d.bg !== it.bg) setPvBg(d.bg);
+        localize(it, d, function (loc) {
+          if (pvItem !== it || playing) return;
+          $('h1', pv).textContent = shownTitle(it, loc);
+          $('.en', pv).textContent = shownSub(it, loc);
+          $('.plot', pv).textContent = (loc && loc.plot) || d.plot;
+        });
       }).catch(function () {});
     }, 450);
   }
@@ -465,21 +510,25 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       { t: T('version') + ': ' + (ver || '—'), info: true, run: function () {} }
     ], true);
   }
+  // Every choice at once, with pictures: 🖥 menus/texts and 🔊 movie sound, each with
+  // flags and the language's own name, so no Georgian is needed to use it.
+  var ICON_SCREEN = '<svg class="ic" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>' +
+    '<path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="2"/></svg>';
+  var ICON_SOUND = '<svg class="ic" viewBox="0 0 24 24"><path d="M3 9h4l5-4v14l-5-4H3z" fill="currentColor"/>' +
+    '<path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none"/></svg>';
   function langMenu() {
-    openOverlay(T('language'), [
-      { t: T('appLang') + ': ' + LANG_NAMES[LANG], icon: FLAGS[LANG], run: function () { pickLang('lang'); }, keep: true },
-      { t: T('movieLang') + ': ' + LANG_NAMES[MLANG], icon: FLAGS[MLANG], run: function () { pickLang('mlang'); }, keep: true }
-    ], true);
-  }
-  function pickLang(which) {
-    var curL = which === 'lang' ? LANG : MLANG;
-    openOverlay(T(which === 'lang' ? 'appLang' : 'movieLang'), ['ka', 'ru', 'en'].map(function (l) {
-      return { t: LANG_NAMES[l], icon: FLAGS[l], cur: l === curL, run: function () {
-        saveSetting(which, l);
-        if (which === 'lang') { LANG = l; applyLang(true); } else { MLANG = l; }
-        try { App && App.setLang && App.setLang(LANG); } catch (e) {}
-      } };
-    }), true);
+    function opts(which) {
+      var curL = which === 'lang' ? LANG : MLANG;
+      return ['ka', 'ru', 'en'].map(function (l) {
+        return { t: LANG_NAMES[l], icon: FLAGS[l], cur: l === curL, run: function () {
+          saveSetting(which, l);
+          if (which === 'lang') { LANG = l; applyLang(true); } else { MLANG = l; }
+          try { App && App.setLang && App.setLang(LANG); } catch (e) {}
+        } };
+      });
+    }
+    openOverlay('', [{ t: T('appLang'), icon: ICON_SCREEN, head: true }].concat(opts('lang'),
+      [{ t: T('movieLang'), icon: ICON_SOUND, head: true }], opts('mlang')), true);
   }
   // Put the chosen language on everything already on screen.
   function applyLang(rebuild) {
@@ -691,6 +740,12 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       if (d.bg) $('.bg', det).style.backgroundImage = 'url("' + d.bg + '")';
       renderDetails();
       findTrailer(it);
+      localize(it, d, function () {
+        if (detItem !== it || !det.classList.contains('on')) return;
+        var act = cur && cur.dataset ? cur.dataset.act : '';
+        renderDetails();
+        if (act) focus($('[data-act="' + act + '"]', det) || cur);
+      });
     }).catch(function (e) {
       if (detItem !== it) return;
       $('.plot', det).textContent = T('loadFail') + ' (' + e.message + ')';
@@ -698,13 +753,16 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   }
   function renderDetails() {
     var it = detItem, d = detData;
+    var loc = d && LANG !== 'ka' ? LOC.get(it.url + '|' + LANG) : null;
     var facts = '';
-    if (d) ['ჟანრი', 'რეჟისორი', 'ქვეყანა', 'სტუდია'].forEach(function (k) {
-      if (d.facts[k]) facts += '<div><b>' + esc(T(FACT_KEYS[k])) + ':</b> ' + esc(d.facts[k]) + '</div>';
+    factOrder(d).forEach(function (k, i) {
+      var v = loc && loc.facts[i] ? loc.facts[i] : d.facts[k];
+      facts += '<div><b>' + esc(T(FACT_KEYS[k])) + ':</b> ' + esc(v) + '</div>';
     });
-    $('.txt', det).innerHTML = '<h1>' + esc(it.title) + '</h1><div class="en">' + esc(it.en) + '</div>' +
+    var plot = !d ? T('loading') : LANG === 'ka' ? d.plot : loc === undefined ? T('loading') : (loc && loc.plot) || d.plot;
+    $('.txt', det).innerHTML = '<h1>' + esc(shownTitle(it, loc)) + '</h1><div class="en">' + esc(shownSub(it, loc)) + '</div>' +
       '<div class="meta">' + metaHtml(it, d) + '</div><div class="facts">' + facts + '</div>' +
-      '<div class="plot">' + esc(d ? d.plot : T('loading')) + '</div>' +
+      '<div class="plot">' + esc(plot) + '</div>' +
       detButtons(it);
     focus($('[data-act=resume]', det) || $('[data-act=play]', det));
   }
@@ -830,10 +888,12 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   var OV = null;
   // list items: { t: text, cur: true for the current choice, run: fn, info: true for a plain line, icon: html }
   function openOverlay(title, list, asDrop) {
-    var sel = 0;
-    list.forEach(function (x, i) { if (x.cur) sel = i; });
+    var sel = -1;
+    list.forEach(function (x, i) { if (x.cur && sel < 0) sel = i; });
+    if (sel < 0) sel = list.findIndex(function (x) { return !x.head; });
     OV = { list: list, sel: sel, ret: OV ? OV.ret : cur };
     $('h4', ov).textContent = title;
+    $('h4', ov).style.display = title ? '' : 'none';
     ov.classList.toggle('drop', !!asDrop);
     ov.classList.add('on');
     renderOverlay();
@@ -841,8 +901,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   function renderOverlay() {
     var box = $('.items', ov);
     box.innerHTML = OV.list.map(function (x, i) {
-      return '<div class="it' + (x.info ? ' info' : '') + (i === OV.sel ? ' sel' : '') + '">' + (x.cur ? '✓ ' : '') +
-        (x.icon || '') + esc(x.t) + '</div>';
+      return '<div class="it' + (x.info ? ' info' : '') + (x.head ? ' head' : '') + (i === OV.sel ? ' sel' : '') + '">' +
+        (x.icon || '') + esc(x.t) + (x.cur ? ' <b class="ok">✓</b>' : '') + '</div>';
     }).join('');
     var s = $('.sel', box);
     if (s) box.scrollTop = s.offsetTop - box.clientHeight / 2 + s.offsetHeight / 2;
@@ -993,8 +1053,11 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       if (playing) { post({ pkey: cmd, repeat: repeat }); return; }
       if (trailer) { if (cmd === 'back') closeTrailer(); else if (!repeat || /left|right|ff|rw/.test(cmd)) trailerKey(cmd); return; }
       if (OV) {
-        if (cmd === 'up' && OV.sel > 0) { OV.sel--; renderOverlay(); }
-        else if (cmd === 'down' && OV.sel < OV.list.length - 1) { OV.sel++; renderOverlay(); }
+        if (cmd === 'up' || cmd === 'down') {
+          var step = cmd === 'up' ? -1 : 1, n = OV.sel + step;
+          while (n >= 0 && n < OV.list.length && OV.list[n].head) n += step;     // skip headings
+          if (n >= 0 && n < OV.list.length) { OV.sel = n; renderOverlay(); }
+        }
         else if (cmd === 'ok' && !repeat) { var x = OV.list[OV.sel]; closeOverlay(); x.run(); }
         else if (cmd === 'back') closeOverlay();
         return;
@@ -1021,6 +1084,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     }
   };
   UI.onTrailer = trailerFound;
+  UI.onLocal = localDone;
   window.__tvui = UI;
   if (!window.__tv) window.__tv = { key: UI.key, back: UI.back, pageReady: function () {} };
 
