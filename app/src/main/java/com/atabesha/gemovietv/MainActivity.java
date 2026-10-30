@@ -672,7 +672,9 @@ public class MainActivity extends Activity {
     private void loadTvUi() {
         // The page runs under ge.movie's address, so the app's logo is embedded into it.
         String html = readAsset("tvui.html")
-                .replace("__LOGO__", "data:image/png;base64," + readAssetBase64("logo.png"));
+                .replace("__LOGO__", "data:image/png;base64," + readAssetBase64("logo.png"))
+                .replace("__AV_PARENTS__", "data:image/jpeg;base64," + readAssetBase64("av_parents.jpg"))
+                .replace("__AV_SON__", "data:image/jpeg;base64," + readAssetBase64("av_son.jpg"));
         web.loadDataWithBaseURL(UI_URL, html, "text/html", "utf-8", UI_URL);
     }
 

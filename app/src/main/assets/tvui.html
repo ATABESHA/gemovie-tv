@@ -16,7 +16,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 #top{position:absolute;left:0;right:0;top:0;height:76px;display:flex;align-items:center;gap:10px;
   padding:0 48px;z-index:5;background:linear-gradient(#0b0c10 55%,rgba(11,12,16,0))}
 #top .logo{display:flex;align-items:center;padding:4px;border-radius:12px;margin-right:14px}
-#top .logo img{height:46px;width:auto;border-radius:8px;display:block}
+#top .logo img{height:40px;width:auto;border-radius:8px;display:block}
 #top .logo span{font-size:18px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
 #top .logo span i{font-style:normal;color:#c8afff}
 #top .tab{font-size:17px;padding:9px 13px;white-space:nowrap;border-radius:24px;color:var(--dim)}
@@ -30,6 +30,44 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   display:flex;align-items:center;justify-content:center}
 #lang svg{width:30px;height:20px;border-radius:3px;display:block;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
 #lang.fx{background:#fff!important}
+#me{padding:0;overflow:hidden}
+#me .av{width:46px;height:46px;font-size:26px;border-radius:50%}
+#me.fx{box-shadow:0 0 0 3px #fff}
+
+/* ---------- profiles: picker, editor, PIN */
+.av{display:flex;align-items:center;justify-content:center;border-radius:14px;overflow:hidden;
+  background-size:cover;background-position:center;line-height:1}
+.modal{position:fixed;inset:0;z-index:25;background:radial-gradient(circle at 50% 30%,#1d1f2b,#0b0c10 70%);display:none}
+.modal.on{display:block}
+.modal h2{margin:0;text-align:center;font-size:40px;font-weight:600;padding-top:90px}
+.modal .sub{text-align:center;color:var(--dim);font-size:18px;margin-top:10px;min-height:24px}
+.prow{display:flex;justify-content:center;gap:34px;margin-top:46px;flex-wrap:wrap;padding:0 60px}
+.ptile{display:flex;flex-direction:column;align-items:center;gap:14px;width:150px}
+.ptile .av{width:140px;height:140px;font-size:76px;transition:transform .15s}
+.ptile .nm{font-size:20px;color:#ccc;text-align:center;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ptile.fx .av{transform:scale(1.08);box-shadow:0 0 0 4px #fff}
+.ptile.fx .nm{color:#fff}
+.ptile .lock{font-size:16px;color:var(--dim);margin-top:-8px}
+.peditor{width:760px;margin:40px auto 0}
+.peditor .prow{justify-content:flex-start;margin-top:22px;padding:0;gap:14px}
+.peditor label{display:block;color:var(--dim);font-size:16px;margin:22px 0 -10px}
+.peditor input{width:100%;height:54px;border-radius:12px;border:0;padding:0 18px;font:22px "Noto Sans Georgian",sans-serif;
+  background:rgba(255,255,255,.12);color:#fff;outline:none}
+.peditor input.fx{box-shadow:0 0 0 3px #fff}
+.avpick{width:74px;height:74px;font-size:40px}
+.avpick.cur{box-shadow:0 0 0 3px #4ade80}
+.avpick.fx{transform:scale(1.1);box-shadow:0 0 0 4px #fff}
+.modal .btn{font-size:19px}
+.pin{display:flex;justify-content:center;gap:18px;margin-top:40px}
+.pin i{width:22px;height:22px;border-radius:50%;border:2px solid #fff}
+.pin i.on{background:#fff}
+.pin.bad{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-12px)}75%{transform:translateX(12px)}}
+.pad{display:grid;grid-template-columns:repeat(3,96px);gap:14px;justify-content:center;margin-top:40px}
+.pad .k{height:72px;border-radius:14px;background:rgba(255,255,255,.12);font-size:30px;display:flex;align-items:center;justify-content:center}
+.pad .k.fx{background:#fff;color:#000}
+.kidlock{display:inline-block;margin-top:22px;padding:12px 22px;border-radius:12px;background:rgba(229,9,20,.18);
+  color:#ffb4b4;font-size:18px}
 #top .fx{background:#fff!important;color:#000!important}
 #top .logo.fx{background:rgba(255,255,255,.9)!important}
 #q.fx{background:rgba(255,255,255,.22)!important;color:#fff!important;box-shadow:0 0 0 3px #fff}
@@ -141,11 +179,13 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     <div id="go" class="f" data-act="search" data-t="searchBtn"></div>
     <div id="lang" class="f round" data-act="langmenu"></div>
     <div id="set" class="f round" data-act="settings">⚙</div>
+    <div id="me" class="f round" data-act="profiles"></div>
   </div>
 </div>
 
 <div id="det"><div class="bg"></div><div class="fade"></div><div class="txt"></div></div>
 <div id="ov"><div class="box"><h4></h4><div class="items"></div></div></div>
+<div id="pf" class="modal"></div>
 <div id="loading"></div>
 
 <script>
@@ -166,7 +206,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   var LANG = setting('lang', 'ka');        // ka | ru | en
   var MLANG = setting('mlang', 'ka');      // default movie audio
   var I18N = {
-    ka: { home: 'მთავარი', movies: 'ფილმები', series: 'სერიალები', cw: 'განაგრძე', cwRow: 'განაგრძე ყურება',
+    ka: { profiles: 'პროფილები', who: 'ვინ უყურებს?', switchProf: '👤 პროფილის შეცვლა', editProf: '✏ პროფილის რედაქტირება', addProf: '➕ ახალი პროფილი', newProfile: 'ახალი პროფილი', name: 'სახელი', picture: 'სურათი', kidsProf: '👶 საბავშვო პროფილი', kidAge: 'ბავშვის ასაკი', years: 'წლის', pinLock: '🔒 PIN კოდი', pinNone: 'არ არის', pinSet: 'დაყენებულია', setPin: 'PIN-ის დაყენება', removePin: 'PIN-ის მოხსნა', enterPin: 'შეიყვანე PIN', newPin: 'ახალი PIN (4 ციფრი)', parentPin: 'მშობლის PIN', save: 'შენახვა', del: 'წაშლა', cancel: 'გაუქმება', on: 'კი', off: 'არა', kidBlocked: '🔒 ეს ფილმი ამ პროფილისთვის არ არის', kidAnim: 'ანიმაციური', kidChild: 'საბავშვო', kidFamily: 'საოჯახო', kidSeries: 'მულტსერიალები', kidsMode: 'საბავშვო',
+      home: 'მთავარი', movies: 'ფილმები', series: 'სერიალები', cw: 'განაგრძე', cwRow: 'განაგრძე ყურება',
       mylist: 'ჩემი სია', searchPh: 'ძებნა...', searchBtn: 'ძებნა', searchFor: 'ძებნა:', loading: 'იტვირთება…',
       notFound: 'ვერაფერი მოიძებნა', loadFail: 'ვერ ჩაიტვირთა', retry: 'თავიდან ცდა', site: 'ვებსაიტის გახსნა',
       page: 'გვერდი', clear: 'გასუფთავება', all: 'ყველა', watch: '▶ ყურება', resume: '▶ გაგრძელება',
@@ -177,7 +218,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       settings: 'პარამეტრები', checkUpd: '⟳ განახლების შემოწმება', version: 'ვერსია', language: 'ენა',
       appLang: 'აპის ენა', movieLang: 'ფილმის ენა', newRow: '',
       genre: 'ჟანრი', director: 'რეჟისორი', country: 'ქვეყანა', studio: 'სტუდია', dubbing: 'გახმოვანება', sort: 'სორტირება' },
-    ru: { home: 'Главная', movies: 'Фильмы', series: 'Сериалы', cw: 'Продолжить', cwRow: 'Продолжить просмотр',
+    ru: { profiles: 'Профили', who: 'Кто смотрит?', switchProf: '👤 Сменить профиль', editProf: '✏ Изменить профиль', addProf: '➕ Новый профиль', newProfile: 'Новый профиль', name: 'Имя', picture: 'Картинка', kidsProf: '👶 Детский профиль', kidAge: 'Возраст ребёнка', years: 'лет', pinLock: '🔒 PIN-код', pinNone: 'нет', pinSet: 'установлен', setPin: 'Задать PIN', removePin: 'Убрать PIN', enterPin: 'Введите PIN', newPin: 'Новый PIN (4 цифры)', parentPin: 'PIN родителя', save: 'Сохранить', del: 'Удалить', cancel: 'Отмена', on: 'да', off: 'нет', kidBlocked: '🔒 Этот фильм не для этого профиля', kidAnim: 'Мультфильмы', kidChild: 'Детские', kidFamily: 'Семейные', kidSeries: 'Мультсериалы', kidsMode: 'Детский',
+      home: 'Главная', movies: 'Фильмы', series: 'Сериалы', cw: 'Продолжить', cwRow: 'Продолжить просмотр',
       mylist: 'Мой список', searchPh: 'Поиск...', searchBtn: 'Найти', searchFor: 'Поиск:', loading: 'Загрузка…',
       notFound: 'Ничего не найдено', loadFail: 'Не удалось загрузить', retry: 'Повторить', site: 'Открыть сайт',
       page: 'Стр.', clear: 'Сбросить', all: 'Все', watch: '▶ Смотреть', resume: '▶ Продолжить',
@@ -188,7 +230,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       settings: 'Настройки', checkUpd: '⟳ Проверить обновления', version: 'Версия', language: 'Язык',
       appLang: 'Язык приложения', movieLang: 'Язык фильмов', newRow: 'Новинки',
       genre: 'Жанр', director: 'Режиссёр', country: 'Страна', studio: 'Студия', dubbing: 'Озвучка', sort: 'Сортировка' },
-    en: { home: 'Home', movies: 'Movies', series: 'Series', cw: 'Continue', cwRow: 'Continue watching',
+    en: { profiles: 'Profiles', who: "Who's watching?", switchProf: '👤 Switch profile', editProf: '✏ Edit profile', addProf: '➕ New profile', newProfile: 'New profile', name: 'Name', picture: 'Picture', kidsProf: '👶 Kids profile', kidAge: "Child's age", years: 'years', pinLock: '🔒 PIN', pinNone: 'none', pinSet: 'set', setPin: 'Set PIN', removePin: 'Remove PIN', enterPin: 'Enter PIN', newPin: 'New PIN (4 digits)', parentPin: 'Parent PIN', save: 'Save', del: 'Delete', cancel: 'Cancel', on: 'on', off: 'off', kidBlocked: '🔒 This title is not for this profile', kidAnim: 'Animation', kidChild: 'Kids', kidFamily: 'Family', kidSeries: 'Cartoon series', kidsMode: 'Kids',
+      home: 'Home', movies: 'Movies', series: 'Series', cw: 'Continue', cwRow: 'Continue watching',
       mylist: 'My List', searchPh: 'Search...', searchBtn: 'Search', searchFor: 'Search:', loading: 'Loading…',
       notFound: 'Nothing found', loadFail: "Couldn't load", retry: 'Try again', site: 'Open website',
       page: 'Page', clear: 'Clear', all: 'All', watch: '▶ Watch', resume: '▶ Resume',
@@ -446,9 +489,9 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 
   // ================================================= continue watching
   // Kept on this TV only (the app's own storage), newest first.
-  var CW_KEY = 'tv_continue';
-  function cwAll() { try { return JSON.parse(localStorage.getItem(CW_KEY) || '[]'); } catch (e) { return []; } }
-  function cwSave(list) { try { localStorage.setItem(CW_KEY, JSON.stringify(list.slice(0, 40))); } catch (e) {} }
+  function CWK() { return 'tv_continue_' + (P ? P.id : 'x'); }      // per profile
+  function cwAll() { try { return JSON.parse(localStorage.getItem(CWK()) || '[]'); } catch (e) { return []; } }
+  function cwSave(list) { try { localStorage.setItem(CWK(), JSON.stringify(list.slice(0, 40))); } catch (e) {} }
   function cwGet(url) { return cwAll().filter(function (x) { return x.url === url; })[0] || null; }
   function cwForget(url) { cwSave(cwAll().filter(function (x) { return x.url !== url; })); }
   function cwUpdate(it, p) {
@@ -490,25 +533,28 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   }
 
   // ========================================================= my list
-  var ML_KEY = 'tv_mylist';
-  function myList() { try { return JSON.parse(localStorage.getItem(ML_KEY) || '[]'); } catch (e) { return []; } }
+  function MLK() { return 'tv_mylist_' + (P ? P.id : 'x'); }        // per profile
+  function myList() { try { return JSON.parse(localStorage.getItem(MLK()) || '[]'); } catch (e) { return []; } }
   function inMyList(url) { return myList().some(function (x) { return x.url === url; }); }
   function toggleMyList(it) {
     var list = myList(), had = list.some(function (x) { return x.url === it.url; });
     list = list.filter(function (x) { return x.url !== it.url; });
     if (!had) list.unshift({ url: it.url, at: Date.now(), item: { url: it.url, serial: it.serial, title: it.title, en: it.en,
       poster: it.poster, bg: it.bg, rating: it.rating, year: it.year, langs: it.langs, eps: it.eps } });
-    try { localStorage.setItem(ML_KEY, JSON.stringify(list.slice(0, 200))); } catch (e) {}
+    try { localStorage.setItem(MLK(), JSON.stringify(list.slice(0, 200))); } catch (e) {}
   }
 
   // ========================================================= menus
   function settingsMenu() {
     var ver = '';
     try { ver = App && App.appVersion ? App.appVersion() : ''; } catch (e) {}
-    openOverlay(T('settings'), [
+    var items = [{ t: T('switchProf'), run: function () { openPicker(); } }];
+    if (P && !P.kids) items.push({ t: T('editProf'), run: function () { openEditor(P); } },
+      { t: T('addProf'), run: function () { requireParent(function () { openEditor(null); }); } });
+    openOverlay(T('settings'), items.concat([
       { t: T('checkUpd'), run: function () { if (App && App.checkUpdate) App.checkUpdate(); } },
       { t: T('version') + ': ' + (ver || '—'), info: true, run: function () {} }
-    ], true);
+    ]), true);
   }
   // Every choice at once, with pictures: 🖥 menus/texts and 🔊 movie sound, each with
   // flags and the language's own name, so no Georgian is needed to use it.
@@ -522,6 +568,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       return ['ka', 'ru', 'en'].map(function (l) {
         return { t: LANG_NAMES[l], icon: FLAGS[l], cur: l === curL, run: function () {
           saveSetting(which, l);
+          if (P) { P[which] = l; saveProfiles(); }
           if (which === 'lang') { LANG = l; applyLang(true); } else { MLANG = l; }
           try { App && App.setLang && App.setLang(LANG); } catch (e) {}
         } };
@@ -580,15 +627,20 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     var body = $('#home .body');
     body.innerHTML = '<div class="msg">' + esc(T('loading')) + '</div>';
     H.rows = [];
-    var defs = [
+    var defs = P && P.kids ? [
+      { key: 'k_anim', title: T('kidAnim'), type: 'movie', params: { 'genres[]': 'animatsiuri' } },
+      { key: 'k_child', title: T('kidChild'), type: 'movie', params: { 'genres[]': 'sabavshvo' } },
+      { key: 'k_family', title: T('kidFamily'), type: 'movie', params: { 'genres[]': 'saojakho' } },
+      { key: 'k_series', title: T('kidSeries'), type: 'serial', params: { 'genres[]': 'animatsiuri' } }
+    ] : [
       { key: 'new', load: function () { return loadNew(); } },
       { key: 'movie', title: T('movies'), type: 'movie' },
       { key: 'serial', title: T('series'), type: 'serial' }
     ];
     return Promise.all(defs.map(function (d) {
       if (d.load) return d.load().then(function (r) { return { key: d.key, title: T('newRow') || r.title, items: r.items }; });
-      return loadList(d.type, {}, 1).then(function (r) {
-        return { key: d.key, title: d.title, items: r.items, type: d.type, page: 1, pages: r.pages };
+      return loadList(d.type, d.params || {}, 1).then(function (r) {
+        return { key: d.key, title: d.title, items: r.items, type: d.type, params: d.params || {}, page: 1, pages: r.pages };
       });
     })).then(function (rows) {
       body.innerHTML = '';
@@ -615,7 +667,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   function rowMore(r) {
     if (!r.type || r.loading || r.page >= r.pages) return;
     r.loading = true;
-    loadList(r.type, {}, r.page + 1).then(function (res) {
+    loadList(r.type, r.params || {}, r.page + 1).then(function (res) {
       r.page++;
       r.pages = Math.max(r.pages, res.pages);
       var track = $('.track', r.el);
@@ -630,6 +682,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   function openBrowse(type, q) {
     B = { type: type, params: {}, page: 0, pages: 1, loading: false, filters: B.type === type ? B.filters : null, q: q || '' };
     if (type === 'search') B.params = { search: q };
+    else if (P && P.kids && (type === 'movie' || type === 'serial')) B.params = { 'genres[]': 'animatsiuri' };
     show('browse');
     renderBrowse();
     return loadPage(true);
@@ -680,7 +733,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     var want = B.page + 1, token = B;
     return loadList(type, B.params, want).then(function (res) {
       if (token !== B) return;
-      if (first && !B.filters && B.type !== 'search') { B.filters = parseFilters(res.doc); renderBrowse(); }
+      if (first && !B.filters && B.type !== 'search') { B.filters = kidFilters(parseFilters(res.doc)); renderBrowse(); }
       B.page = want;
       B.pages = res.pages;
       var wrap = $('#browse .gridwrap');
@@ -708,13 +761,15 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 
   function pickFilter(i) {
     var f = B.filters[i], curV = B.params[f.name];
-    var list = [{ t: T('all'), cur: !curV, run: function () { setFilter(f.name, ''); } }].concat(f.opts.map(function (o) {
+    var all = P && P.kids && f.name === 'genres[]' ? [] : [{ t: T('all'), cur: !curV, run: function () { setFilter(f.name, ''); } }];
+    var list = all.concat(f.opts.map(function (o) {
       return { t: o.t, cur: o.v === curV, run: function () { setFilter(f.name, o.v); } };
     }));
     openOverlay(T(f.label), list);
   }
   function setFilter(name, v) {
     if (name) { if (v) B.params[name] = v; else delete B.params[name]; }
+    if (P && P.kids && !B.params['genres[]']) B.params['genres[]'] = 'animatsiuri';
     var keepFilters = B.filters, params = B.params, type = B.type;
     B = { type: type, params: params, page: 0, pages: 1, loading: false, filters: keepFilters, q: '' };
     renderBrowse();
@@ -764,9 +819,13 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       '<div class="meta">' + metaHtml(it, d) + '</div><div class="facts">' + facts + '</div>' +
       '<div class="plot">' + esc(plot) + '</div>' +
       detButtons(it);
-    focus($('[data-act=resume]', det) || $('[data-act=play]', det));
+    focus($('[data-act=resume]', det) || $('[data-act=play]', det) || $('[data-act=back]', det));
   }
   function detButtons(it) {
+    if (P && P.kids && detData && !kidAllowed(detData)) {
+      return '<div class="bar"><span class="kidlock">' + esc(T('kidBlocked')) + '</span>' +
+        '<span class="btn f" data-act="back">' + esc(T('back')) + '</span></div>';
+    }
     var cw = cwGet(it.url);
     var tr = trailers.get(it.url) ? '<span class="btn f" data-act="trailer">' + esc(T('trailer')) + '</span>' : '';
     var ml = '<span class="btn f" data-act="mylist">' + esc(T(inMyList(it.url) ? 'inList' : 'addList')) + '</span>';
@@ -1015,6 +1074,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     else if (act === 'movie' || act === 'serial' || act === 'cw' || act === 'list') openBrowse(act);
     else if (act === 'search') doSearch();
     else if (act === 'settings') settingsMenu();
+    else if (act === 'profiles') openPicker();
     else if (act === 'langmenu') langMenu();
     else if (act === 'mylist') {
       toggleMyList(detItem);
@@ -1046,6 +1106,257 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   $('#q').addEventListener('focus', function () { if (!qWanted) $('#q').blur(); });
   $('#q').addEventListener('blur', function () { qWanted = false; });
 
+  // ============================================== profiles
+  // Kept on this TV: [{ id, name, av, kids, age, pin, lang, mlang }]. Continue Watching and
+  // My List are kept per profile. Kids profiles see children's genres only, and titles
+  // whose age rating is above the child's age can't be played.
+  var P = null;                                            // current profile
+  var PHOTOS = { parents: '__AV_PARENTS__', son: '__AV_SON__' };
+  var EMOJI = ['🦊', '🐼', '🐯', '🦁', '🐸', '🐵', '🐧', '🦄', '🐶', '🐱', '🚀', '⚽', '🎮', '🎨', '🌟', '🍿'];
+  var COLORS = ['#e50914', '#2563eb', '#16a34a', '#d97706', '#9333ea', '#0891b2', '#db2777', '#4b5563'];
+  var KID_GENRES = ['animatsiuri', 'sabavshvo', 'saojakho', 'anime', 'musikaluri'];
+  function profiles() { try { return JSON.parse(localStorage.getItem('tv_profiles') || '[]'); } catch (e) { return []; } }
+  var PROFS = profiles();
+  function saveProfiles() { try { localStorage.setItem('tv_profiles', JSON.stringify(PROFS)); } catch (e) {} }
+  function norm(n) { return String(n || '').toLowerCase().replace(/\s+/g, ''); }
+  // Pictures offered for a name: everyone gets the drawn ones; two names get a family photo.
+  function avatarChoices(name) {
+    var n = norm(name), out = [];
+    if (n === 'amo&sofo') out.push('p:parents');
+    if (n === 'alexandre' || n === 'ალექსანდრე' || n === 'александр') out.push('p:son');
+    EMOJI.forEach(function (e, i) { out.push('e:' + e + ':' + COLORS[i % COLORS.length]); });
+    return out;
+  }
+  function avHtml(av, cls) {
+    av = av || 'e:🍿:#e50914';
+    if (av.indexOf('p:') === 0) return '<div class="av ' + (cls || '') + '" style="background-image:url(' + PHOTOS[av.slice(2)] + ')"></div>';
+    var x = av.split(':');
+    return '<div class="av ' + (cls || '') + '" style="background:' + (x[2] || '#e50914') + '">' + esc(x[1] || '🍿') + '</div>';
+  }
+  function newId() { return 'p' + Date.now().toString(36) + Math.floor(Math.random() * 1000); }
+
+  // First start with profiles: today's data becomes the first profile.
+  if (!PROFS.length) {
+    PROFS = [{ id: 'p1', name: 'MyMovie', av: 'e:🍿:#e50914', kids: false, age: 0, pin: '', lang: LANG, mlang: MLANG }];
+    try {
+      ['tv_continue', 'tv_mylist'].forEach(function (k) {
+        var v = localStorage.getItem(k);
+        if (v && !localStorage.getItem(k + '_p1')) localStorage.setItem(k + '_p1', v);
+      });
+    } catch (e) {}
+    saveProfiles();
+  }
+
+  // Age ratings as the site shows them (R, PG-13, TV-14, 12+ ...) -> minimum age
+  function ageOf(r) {
+    r = String(r || '').toUpperCase().replace(/\s+/g, '');
+    var map = { 'G': 0, 'TV-Y': 0, 'TV-G': 0, 'TV-Y7': 7, 'TV-Y7-FV': 7, 'PG': 8, 'TV-PG': 10, 'PG-13': 13,
+      'TV-14': 14, 'R': 17, 'TV-MA': 17, 'NC-17': 18 };
+    if (Object.prototype.hasOwnProperty.call(map, r)) return map[r];
+    var m = /^(\d{1,2})\+?$/.exec(r);
+    return m ? parseInt(m[1], 10) : null;
+  }
+  function kidAllowed(d) {
+    if (!P || !P.kids) return true;
+    var a = ageOf(d.facts['ასაკობრივი შეზღუდვა']);
+    if (a !== null) return a <= (P.age || 0);
+    var g = d.facts['ჟანრი'] || '';                         // no age on the page: judge by genre
+    return /ანიმაც|საბავშვო|საოჯახო|ანიმე|მუსიკალ/.test(g) && !/საშინელ|ეროტ|თრილერ|საომარ|კრიმინ|ტრილერ/.test(g);
+  }
+  function kidFilters(fs) {
+    if (!P || !P.kids) return fs;
+    return fs.map(function (f) {
+      if (f.name !== 'genres[]') return f;
+      return { name: f.name, label: f.label, opts: f.opts.filter(function (o) { return KID_GENRES.indexOf(o.v) >= 0; }) };
+    }).filter(function (f) { return f.name !== 'countries'; });
+  }
+
+  // Switch to a profile: language, lists and (for kids) the home rows change with it.
+  function useProfile(p) {
+    P = p;
+    try { sessionStorage.setItem('tv_prof', p.id); } catch (e) {}
+    LANG = p.lang || 'ka'; MLANG = p.mlang || 'ka';
+    saveSetting('lang', LANG); saveSetting('mlang', MLANG);
+    try { App && App.setLang && App.setLang(LANG); } catch (e) {}
+    $('#me').innerHTML = avHtml(p.av);
+    B = { type: 'movie', params: {}, page: 0, pages: 1, loading: false, filters: null, q: '' };
+    mem = {};
+    closeModal();
+    applyLang(false);
+    show('home');
+    focus($('#t-home'));
+    buildHome().then(function () { if (cur && cur.id === 't-home' && !OV) focus(firstCard()); });
+  }
+
+  // ---- small screens of our own: picker, editor, PIN pad
+  var M = null;                                // { kind, rows(): [[el...]], back(), ... }
+  var pf = $('#pf');
+  function closeModal() { M = null; pf.classList.remove('on'); pf.innerHTML = ''; }
+  function modalRows() { return $$('.prow', pf).map(function (r) { return $$('.f', r); }).filter(function (r) { return r.length; }); }
+  function modalMove(dir) {
+    var rows = modalRows(), ri = -1, ci = -1;
+    rows.forEach(function (r, i) { var j = r.indexOf(cur); if (j >= 0) { ri = i; ci = j; } });
+    if (ri < 0) { if (rows[0]) focus(rows[0][0]); return; }
+    if (dir === 'left' && ci > 0) focus(rows[ri][ci - 1]);
+    else if (dir === 'right' && ci < rows[ri].length - 1) focus(rows[ri][ci + 1]);
+    else if (dir === 'up' || dir === 'down') {
+      var t = rows[ri + (dir === 'up' ? -1 : 1)];
+      if (!t) return;
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      var save = t.filter(function (e) { return e.dataset.e === 'save'; })[0];   // never land on Cancel by accident
+      focus(save || t[nearestX(t, cur)]);
+    }
+  }
+
+  // Who's watching?
+  function openPicker() {
+    pf.classList.add('on');
+    pf.innerHTML = '<h2>' + esc(T('who')) + '</h2><div class="sub"></div><div class="prow">' +
+      PROFS.map(function (p, i) {
+        return '<div class="ptile f" data-i="' + i + '">' + avHtml(p.av) + '<div class="nm">' + esc(p.name) + '</div>' +
+          (p.pin ? '<div class="lock">🔒</div>' : p.kids ? '<div class="lock">👶</div>' : '') + '</div>';
+      }).join('') +
+      '<div class="ptile f" data-i="new"><div class="av" style="background:rgba(255,255,255,.1);font-size:64px">＋</div>' +
+      '<div class="nm">' + esc(T('newProfile')) + '</div></div></div>';
+    M = { kind: 'picker', ok: function (el) {
+      if (el.dataset.i === 'new') { requireParent(function () { openEditor(null); }); return; }
+      var p = PROFS[+el.dataset.i];
+      if (p.pin && p !== P) askPin(T('enterPin'), function (code) { return code === p.pin; }, function () { useProfile(p); }, openPicker);
+      else useProfile(p);
+    }, back: function () { if (P) { closeModal(); focus($('#me')); return true; } return false; } };
+    var curIdx = P ? PROFS.indexOf(P) : -1;
+    focus($$('.ptile', pf)[Math.max(0, curIdx)]);
+  }
+
+  // PIN pad: digits with the arrows/OK or the remote's number keys
+  function askPin(title, check, onOk, onCancel, isNew) {
+    var code = '';
+    pf.classList.add('on');
+    var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', '✓'];
+    pf.innerHTML = '<h2>' + esc(title) + '</h2><div class="sub"></div><div class="pin">' + '<i></i><i></i><i></i><i></i>' + '</div>' +
+      '<div class="pad">' + keys.map(function (k, i) {
+        return (i % 3 === 0 ? '' : '') + '<div class="k f" data-k="' + k + '">' + k + '</div>';
+      }).join('') + '</div>';
+    // the pad as rows for the arrows
+    var ks = $$('.k', pf);
+    for (var r = 0; r < 4; r++) {
+      var row = document.createElement('div'); row.className = 'prow'; row.style.display = 'contents';
+      ks.slice(r * 3, r * 3 + 3).forEach(function (k) { row.appendChild(k); });
+      $('.pad', pf).appendChild(row);
+    }
+    function draw() {
+      $$('.pin i', pf).forEach(function (d, i) { d.classList.toggle('on', i < code.length); });
+      if (isNew) $('.sub', pf).textContent = code.replace(/./g, function (c) { return c + ' '; });
+    }
+    function press(k) {
+      if (k === '⌫') code = code.slice(0, -1);
+      else if (k === '✓') submit();
+      else if (code.length < 4) { code += k; if (code.length === 4) setTimeout(submit, 150); }
+      draw();
+    }
+    function submit() {
+      if (code.length < 4) return;
+      if (check(code)) { var c = code; closeModal(); onOk(c); return; }
+      var pin = $('.pin', pf);
+      pin.classList.remove('bad'); void pin.offsetWidth; pin.classList.add('bad');
+      code = ''; draw();
+    }
+    M = { kind: 'pin', ok: function (el) { press(el.dataset.k); }, digit: press,
+      back: function () { closeModal(); if (onCancel) onCancel(); else if (P) focus($('#t-home')); return true; } };
+    focus(ks[4]);
+    draw();
+  }
+  // Creating or changing profiles needs a parent's PIN when any grown-up profile has one.
+  function requireParent(then) {
+    var pins = PROFS.filter(function (p) { return !p.kids && p.pin; }).map(function (p) { return p.pin; });
+    if (!pins.length) { then(); return; }
+    if (P && !P.kids) { then(); return; }               // already inside a grown-up profile
+    askPin(T('parentPin'), function (c) { return pins.indexOf(c) >= 0; }, then, openPicker);
+  }
+
+  // Profile editor
+  function openEditor(p) {
+    var E = p ? JSON.parse(JSON.stringify(p)) : { id: newId(), name: '', av: 'e:🦊:#e50914', kids: false, age: 8, pin: '',
+      lang: LANG, mlang: MLANG };
+    var isNew = !p;
+    function draw(focusSel) {
+      var choices = avatarChoices(E.name);
+      if (choices.indexOf(E.av) < 0) E.av = choices[choices.length - EMOJI.length] || choices[0];
+      pf.classList.add('on');
+      pf.innerHTML = '<h2 style="padding-top:50px">' + esc(isNew ? T('newProfile') : T('editProf').replace(/^✏\s*/, '')) + '</h2>' +
+        '<div class="peditor">' +
+        '<label>' + esc(T('name')) + '</label><div class="prow"><input id="pname" class="f" type="text" maxlength="20" value="' + esc(E.name) + '"></div>' +
+        '<label>' + esc(T('picture')) + '</label><div class="prow">' + choices.map(function (a) {
+          return '<div class="f avwrap" data-av="' + esc(a) + '">' + avHtml(a, 'avpick' + (a === E.av ? ' cur' : '')) + '</div>';
+        }).join('') + '</div>' +
+        '<div class="prow"><span class="btn f" data-e="kids">' + esc(T('kidsProf')) + ': ' + esc(T(E.kids ? 'on' : 'off')) + '</span>' +
+        (E.kids ? '<span class="btn f" data-e="age">' + esc(T('kidAge')) + ': ' + E.age + ' ' + esc(T('years')) + '</span>'
+                : '<span class="btn f" data-e="pin">' + esc(T('pinLock')) + ': ' + esc(T(E.pin ? 'pinSet' : 'pinNone')) + '</span>') + '</div>' +
+        '<div class="prow" style="margin-top:34px"><span class="btn play f" data-e="save">' + esc(T('save')) + '</span>' +
+        (!isNew && PROFS.length > 1 ? '<span class="btn f" data-e="del">' + esc(T('del')) + '</span>' : '') +
+        '<span class="btn f" data-e="cancel">' + esc(T('cancel')) + '</span></div></div>';
+      $$('.avwrap', pf).forEach(function (w) { w.classList.add('av-hold'); });
+      var inp = $('#pname');
+      inp.addEventListener('focus', function () { if (!nameWanted) inp.blur(); });
+      inp.addEventListener('blur', function () { nameWanted = false; });
+      inp.addEventListener('input', function () { E.name = inp.value; });
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); draw('[data-av]'); } });
+      focus($(focusSel || '#pname', pf) || $('#pname'));
+    }
+    var nameWanted = false;
+    M = { kind: 'editor', ok: function (el) {
+      if (el.id === 'pname') {
+        nameWanted = true;
+        var r = el.getBoundingClientRect();
+        if (App && App.tap) App.tap((r.left + r.width / 2) / innerWidth, (r.top + r.height / 2) / innerHeight); else el.focus();
+        return;
+      }
+      if (el.dataset.av) { E.av = el.dataset.av; draw('[data-av="' + el.dataset.av + '"]'); return; }
+      var a = el.dataset.e;
+      if (a === 'kids') { E.kids = !E.kids; if (E.kids) E.pin = ''; draw('[data-e=kids]'); }
+      else if (a === 'age') {
+        var ages = []; for (var y = 3; y <= 17; y++) ages.push(y);
+        openOverlay(T('kidAge'), ages.map(function (y) {
+          return { t: y + ' ' + T('years'), cur: y === E.age, run: function () { E.age = y; draw('[data-e=age]'); } };
+        }));
+      }
+      else if (a === 'pin') {
+        var keep = M;
+        var opts = [{ t: T('setPin'), run: function () {
+          askPin(T('newPin'), function () { return true; }, function (c) { E.pin = c; M = keep; draw('[data-e=pin]'); },
+            function () { M = keep; draw('[data-e=pin]'); }, true);
+        } }];
+        if (E.pin) opts.push({ t: T('removePin'), run: function () { E.pin = ''; draw('[data-e=pin]'); } });
+        openOverlay(T('pinLock'), opts);
+      }
+      else if (a === 'save') {
+        E.name = ($('#pname').value || '').trim() || T('newProfile');
+        if (avatarChoices(E.name).indexOf(E.av) < 0) E.av = avatarChoices('')[0];
+        var i = PROFS.findIndex(function (x) { return x.id === E.id; });
+        if (i >= 0) PROFS[i] = E; else PROFS.push(E);
+        saveProfiles();
+        useProfile(E);
+      }
+      else if (a === 'del') {
+        PROFS = PROFS.filter(function (x) { return x.id !== E.id; });
+        saveProfiles();
+        try { localStorage.removeItem('tv_continue_' + E.id); localStorage.removeItem('tv_mylist_' + E.id); } catch (e) {}
+        if (P && P.id === E.id) P = null;
+        openPicker();
+      }
+      else if (a === 'cancel') M.back();
+    }, back: function () {
+      if (document.activeElement && document.activeElement.id === 'pname') { document.activeElement.blur(); draw('#pname'); return true; }
+      if (P) { closeModal(); focus($('#set')); } else openPicker();
+      return true;
+    } };
+    draw();
+  }
+  // number keys on the remote (they reach the page as normal key presses)
+  document.addEventListener('keydown', function (e) {
+    if (M && M.kind === 'pin' && /^[0-9]$/.test(e.key)) { e.preventDefault(); M.digit(e.key); }
+  });
+
   // ============================================== remote keys (from the app)
   var lastKey = 0;
   var UI = {
@@ -1062,6 +1373,12 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
         else if (cmd === 'back') closeOverlay();
         return;
       }
+      if (M) {
+        if (cmd === 'ok') { if (!repeat && cur) M.ok(cur); }
+        else if (cmd === 'back') M.back();
+        else if (['up', 'down', 'left', 'right'].indexOf(cmd) >= 0) modalMove(cmd);
+        return;
+      }
       if (cmd === 'ok') { if (!repeat) activate(cur); return; }
       if (cmd === 'back') { UI.back(); return; }
       if (cmd === 'pageup' || cmd === 'pagedown') cmd = cmd === 'pageup' ? 'up' : 'down';
@@ -1076,6 +1393,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       if (playing) { closePlayer(); return true; }
       if (trailer) { closeTrailer(); return true; }
       if (OV) { closeOverlay(); return true; }
+      if (M) return M.back();
       if (det.classList.contains('on')) { closeDetails(); return true; }
       if (document.activeElement && document.activeElement.id === 'q') { $('#q').blur(); return true; }
       if (screen === 'browse') { show('home'); focus(firstCard()); return true; }
@@ -1089,13 +1407,13 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   if (!window.__tv) window.__tv = { key: UI.key, back: UI.back, pageReady: function () {} };
 
   // ============================================================== start
-  applyLang(false);
-  try { App && App.setLang && App.setLang(LANG); } catch (e) {}
-  show('home');
-  focus($('#t-home'));
-  buildHome().then(function () {
-    if (cur && cur.id === 't-home' && !OV && !det.classList.contains('on')) focus(firstCard());
-  });
+  // Who's watching? asked at every start when there are several profiles or a PIN.
+  var last = null;
+  try { last = sessionStorage.getItem('tv_prof'); } catch (e) {}
+  var lastP = PROFS.filter(function (p) { return p.id === last; })[0];
+  if (lastP) useProfile(lastP);                                   // page reload inside the app
+  else if (PROFS.length === 1 && !PROFS[0].pin) useProfile(PROFS[0]);
+  else { applyLang(false); openPicker(); }
 })();
 </script>
 </body>
