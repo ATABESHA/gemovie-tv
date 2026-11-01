@@ -848,7 +848,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   // or preload its player. The user can select the matching title there.
   function openSourceSearch(site) {
     if (!detItem) return;
-    var title = String(detItem.en || detItem.title || '').replace(/\\s+/g, ' ').trim();
+    var title = String(detItem.en || detItem.title || '').replace(/\s+/g, ' ').trim();
     if (!title) return;
     var q = encodeURIComponent(title);
     var urls = {
