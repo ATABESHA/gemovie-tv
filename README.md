@@ -26,6 +26,22 @@ Made for Sony Bravia 4K UR2 (Android TV 10), works on any Android TV / Google TV
 Quality starts at **1080p** (the player itself picks 4K, which is too heavy for the TV).
 Your choices of quality, audio and subtitles are remembered for the next movie.
 
+## Alternative movie sources
+
+On a movie's details screen, choose **Sources** (the compact tile matching the
+in-player controls) to search MyKadri, Geosaitebi, Adjaranet or Kinokadri by the movie's
+English title (or Georgian title when no English title is available). The selected site's
+own results page and player open inside the app. Use Back to return to MyMovie.
+
+When a ge.movie Playerjs video is already open, press **Up** or **Down**, choose the
+**Sources** tile in the player control panel, then select the alternative site. This
+uses the same tile/list style as Audio, Quality and Subtitles.
+
+This is intentionally on-demand: the app does not contact these sites at startup, search
+all four in the background, create hidden player iframes, or download video files. Only
+the selected site is opened, so the existing ge.movie catalogue and playback path remain
+unchanged. The generic remote controller in `tvnav.js` is reused for other-site pages.
+
 ## Remote controls (other sites)
 
 | Button | While browsing | While a video is full screen |
