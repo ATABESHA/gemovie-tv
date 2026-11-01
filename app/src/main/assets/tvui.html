@@ -212,7 +212,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       notFound: 'ვერაფერი მოიძებნა', loadFail: 'ვერ ჩაიტვირთა', retry: 'თავიდან ცდა', site: 'ვებსაიტის გახსნა',
       page: 'გვერდი', clear: 'გასუფთავება', all: 'ყველა', watch: '▶ ყურება', resume: '▶ გაგრძელება',
       fromStart: '↺ თავიდან', forget: 'სიიდან წაშლა', trailer: '🎬 თრეილერი', back: 'უკან',
-      addList: '+ ჩემს სიაში', inList: '✓ ჩემს სიაშია', noVideo: 'ვიდეო ვერ მოიძებნა.',
+      addList: '+ ჩემს სიაში', inList: '✓ ჩემს სიაშია', sources: 'სხვა საიტები', noVideo: 'ვიდეო ვერ მოიძებნა.',
       cwEmpty: 'ჯერ არაფერი გიყურებიათ. დაიწყე ფილმი და აქ გამოჩნდება.',
       listEmpty: 'სია ცარიელია. ფილმის გვერდზე დააჭირე „+ ჩემს სიაში“.', titles: 'სათაური',
       settings: 'პარამეტრები', checkUpd: '⟳ განახლების შემოწმება', version: 'ვერსია', language: 'ენა',
@@ -224,7 +224,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       notFound: 'Ничего не найдено', loadFail: 'Не удалось загрузить', retry: 'Повторить', site: 'Открыть сайт',
       page: 'Стр.', clear: 'Сбросить', all: 'Все', watch: '▶ Смотреть', resume: '▶ Продолжить',
       fromStart: '↺ Сначала', forget: 'Убрать', trailer: '🎬 Трейлер', back: 'Назад',
-      addList: '+ В мой список', inList: '✓ В моём списке', noVideo: 'Видео не найдено.',
+      addList: '+ В мой список', inList: '✓ В моём списке', sources: 'Другие сайты', noVideo: 'Видео не найдено.',
       cwEmpty: 'Вы ещё ничего не смотрели. Начните фильм, и он появится здесь.',
       listEmpty: 'Список пуст. На странице фильма нажмите «+ В мой список».', titles: 'назв.',
       settings: 'Настройки', checkUpd: '⟳ Проверить обновления', version: 'Версия', language: 'Язык',
@@ -236,7 +236,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       notFound: 'Nothing found', loadFail: "Couldn't load", retry: 'Try again', site: 'Open website',
       page: 'Page', clear: 'Clear', all: 'All', watch: '▶ Watch', resume: '▶ Resume',
       fromStart: '↺ From start', forget: 'Remove', trailer: '🎬 Trailer', back: 'Back',
-      addList: '+ My List', inList: '✓ In My List', noVideo: 'Video not found.',
+      addList: '+ My List', inList: '✓ In My List', sources: 'Other sites', noVideo: 'Video not found.',
       cwEmpty: "You haven't watched anything yet. Start a movie and it will show here.",
       listEmpty: 'Your list is empty. On a movie page press "+ My List".', titles: 'titles',
       settings: 'Settings', checkUpd: '⟳ Check for updates', version: 'Version', language: 'Language',
@@ -824,7 +824,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   function detButtons(it) {
     if (P && P.kids && detData && !kidAllowed(detData)) {
       return '<div class="bar"><span class="kidlock">' + esc(T('kidBlocked')) + '</span>' +
-        '<span class="btn f" data-act="back">' + esc(T('back')) + '</span></div>';
+        '<span class="btn f" data-act="sources">' + esc(T('sources')) + '</span>' +
+      '<span class="btn f" data-act="back">' + esc(T('back')) + '</span></div>';
     }
     var cw = cwGet(it.url);
     var tr = trailers.get(it.url) ? '<span class="btn f" data-act="trailer">' + esc(T('trailer')) + '</span>' : '';
@@ -833,11 +834,39 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       var where = [epLabel(cw.ep), cw.t > 30 ? fmtTime(cw.t) : ''].filter(Boolean).join(' · ');
       return '<div class="bar"><span class="btn play f" data-act="resume">' + esc(T('resume')) + ' <small>' + esc(where) + '</small></span>' +
         '<span class="btn f" data-act="play">' + esc(T('fromStart')) + '</span>' + tr + ml +
+        '<span class="btn f" data-act="sources">' + esc(T('sources')) + '</span>' +
         '<span class="btn f" data-act="forget">' + esc(T('forget')) + '</span>' +
         '<span class="btn f" data-act="back">' + esc(T('back')) + '</span></div>';
     }
     return '<div class="bar"><span class="btn play f" data-act="play">' + esc(T('watch')) + '</span>' + tr + ml +
       '<span class="btn f" data-act="back">' + esc(T('back')) + '</span></div>';
+  }
+
+  // ---------- alternative sites: search only on explicit user selection
+  // MyKadri, Geosaitebi and Adjaranet use the DLE search route; Kinokadri uses its
+  // WordPress-style search query. We open the site's own results/page, never scrape
+  // or preload its player. The user can select the matching title there.
+  function openSourceSearch(site) {
+    if (!detItem) return;
+    var title = String(detItem.en || detItem.title || '').replace(/\\s+/g, ' ').trim();
+    if (!title) return;
+    var q = encodeURIComponent(title);
+    var urls = {
+      mykadri: 'https://mykadri.tv/index.php?do=search&subaction=search&story=' + q,
+      geosaitebi: 'https://geosaitebi.tv/index.php?do=search&subaction=search&story=' + q,
+      adjaranet: 'https://adjaranet.bet/index.php?do=search&subaction=search&story=' + q,
+      kinokadri: 'https://kinokadri.co/?s=' + q
+    };
+    if (urls[site]) location.href = urls[site];
+  }
+  function openSources() {
+    if (!detItem) return;
+    openOverlay(T('sources'), [
+      { t: 'MyKadri', run: function () { openSourceSearch('mykadri'); } },
+      { t: 'Geosaitebi', run: function () { openSourceSearch('geosaitebi'); } },
+      { t: 'Adjaranet', run: function () { openSourceSearch('adjaranet'); } },
+      { t: 'Kinokadri', run: function () { openSourceSearch('kinokadri'); } }
+    ]);
   }
 
   // ---------- trailers (YouTube)
@@ -1084,6 +1113,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     else if (act === 'play') openPlayer(null);
     else if (act === 'resume') openPlayer(cwGet(detItem.url));
     else if (act === 'trailer') openTrailer();
+    else if (act === 'sources') openSources();
     else if (act === 'forget') { cwForget(detItem.url); $('.txt .bar', det).outerHTML = detButtons(detItem); focus($('[data-act=play]', det)); }
     else if (act === 'back') closeDetails();
     else if (act === 'retry' && el.__run) el.__run();
