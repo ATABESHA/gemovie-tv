@@ -184,6 +184,7 @@
     return null;
   }
 
+  var APP_PLAYER = false;  // set only when the app starts this player with its pstart message
   var PL = { open: false, tile: 0, tiles: [], list: null, idle: null, tick: null,
     plist: null, plistFile: null, started: false, audio: null, lang: 'ka', audioPref: '' };
   var PT = {
@@ -308,19 +309,20 @@
       return out;
     } });
 
-    // A fallback is available from the same TV control panel as quality/audio/subtitles.
-    // The top-level app validates the message source before navigating away from this player.
-    t.push({ name: pt('sources'), value: pt('sourceHint'), list: function () {
-      function choose(site) {
-        try { window.top.postMessage({ __tv: { openSource: site } }, '*'); } catch (e) {}
-      }
-      return [
-        { label: 'MyKadri', run: function () { choose('mykadri'); } },
-        { label: 'Geosaitebi', run: function () { choose('geosaitebi'); } },
-        { label: 'Adjaranet', run: function () { choose('adjaranet'); } },
-        { label: 'Kinokadri', run: function () { choose('kinokadri'); } }
-      ];
-    } });
+    // Only show this tile inside a player launched by MyMovie, not on arbitrary sites.
+    if (APP_PLAYER) {
+      t.push({ name: pt('sources'), value: pt('sourceHint'), list: function () {
+        function choose(site) {
+          try { window.top.postMessage({ __tv: { openSource: site } }, '*'); } catch (e) {}
+        }
+        return [
+          { label: 'MyKadri', run: function () { choose('mykadri'); } },
+          { label: 'Geosaitebi', run: function () { choose('geosaitebi'); } },
+          { label: 'Adjaranet', run: function () { choose('adjaranet'); } },
+          { label: 'Kinokadri', run: function () { choose('kinokadri'); } }
+        ];
+      } });
+    }
 
     return t;
   }
@@ -1259,6 +1261,7 @@
     else if (m.fskey) fsKey(m.fskey, m.repeat);
     else if (m.pkey) { if (!playerKey(m.pkey, m.repeat)) sendToFrames(m); }
     else if (m.pstart) {
+      if (ev.source === window.top) APP_PLAYER = true;
       if (m.lang) PL.lang = m.lang;
       if (m.audio) PL.audioPref = m.audio;
       playerStart(m.resume);
