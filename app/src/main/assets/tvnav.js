@@ -188,11 +188,14 @@
     plist: null, plistFile: null, started: false, audio: null, lang: 'ka', audioPref: '' };
   var PT = {
     ka: { pause: 'პაუზა', play: 'დაკვრა', next: 'შემდეგი', episodes: 'ეპიზოდები', audio: 'აუდიო', quality: 'ხარისხი',
-      subs: 'სუბტიტრები', off: 'გამორთული', speed: 'სიჩქარე', volume: 'ხმა', mute: 'ხმის გარეშე' },
+      subs: 'სუბტიტრები', off: 'გამორთული', speed: 'სიჩქარე', volume: 'ხმა', mute: 'ხმის გარეშე',
+      sources: 'წყაროები', sourceHint: 'სხვა საიტი' },
     ru: { pause: 'Пауза', play: 'Играть', next: 'Далее', episodes: 'Серии', audio: 'Аудио', quality: 'Качество',
-      subs: 'Субтитры', off: 'Выкл.', speed: 'Скорость', volume: 'Громкость', mute: 'Без звука' },
+      subs: 'Субтитры', off: 'Выкл.', speed: 'Скорость', volume: 'Громкость', mute: 'Без звука',
+      sources: 'Источники', sourceHint: 'Другой сайт' },
     en: { pause: 'Pause', play: 'Play', next: 'Next', episodes: 'Episodes', audio: 'Audio', quality: 'Quality',
-      subs: 'Subtitles', off: 'Off', speed: 'Speed', volume: 'Volume', mute: 'Muted' }
+      subs: 'Subtitles', off: 'Off', speed: 'Speed', volume: 'Volume', mute: 'Muted',
+      sources: 'Sources', sourceHint: 'Another site' }
   };
   function pt(k) { return (PT[PL.lang] || PT.ka)[k] || PT.ka[k]; }
   // Audio track names in the player -> language code
@@ -304,6 +307,21 @@
       });
       return out;
     } });
+
+    // A fallback is available from the same TV control panel as quality/audio/subtitles.
+    // The top-level app validates the message source before navigating away from this player.
+    t.push({ name: pt('sources'), value: pt('sourceHint'), list: function () {
+      function choose(site) {
+        try { window.top.postMessage({ __tv: { openSource: site } }, '*'); } catch (e) {}
+      }
+      return [
+        { label: 'MyKadri', run: function () { choose('mykadri'); } },
+        { label: 'Geosaitebi', run: function () { choose('geosaitebi'); } },
+        { label: 'Adjaranet', run: function () { choose('adjaranet'); } },
+        { label: 'Kinokadri', run: function () { choose('kinokadri'); } }
+      ];
+    } });
+
     return t;
   }
 
