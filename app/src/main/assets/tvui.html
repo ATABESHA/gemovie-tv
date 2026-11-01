@@ -824,8 +824,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   function detButtons(it) {
     if (P && P.kids && detData && !kidAllowed(detData)) {
       return '<div class="bar"><span class="kidlock">' + esc(T('kidBlocked')) + '</span>' +
-        '<span class="btn f" data-act="sources">' + esc(T('sources')) + '</span>' +
-      '<span class="btn f" data-act="back">' + esc(T('back')) + '</span></div>';
+        '<span class="btn f" data-act="back">' + esc(T('back')) + '</span></div>';
     }
     var cw = cwGet(it.url);
     var tr = trailers.get(it.url) ? '<span class="btn f" data-act="trailer">' + esc(T('trailer')) + '</span>' : '';
@@ -839,6 +838,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
         '<span class="btn f" data-act="back">' + esc(T('back')) + '</span></div>';
     }
     return '<div class="bar"><span class="btn play f" data-act="play">' + esc(T('watch')) + '</span>' + tr + ml +
+      '<span class="btn f" data-act="sources">' + esc(T('sources')) + '</span>' +
       '<span class="btn f" data-act="back">' + esc(T('back')) + '</span></div>';
   }
 
