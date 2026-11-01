@@ -56,7 +56,7 @@ public class MainActivity extends Activity {
      */
     static final String UI_URL = "https://ge.movie/tv-app";
     /** Main-page navigation is only allowed to these domains (and their subdomains). */
-    static final String[] ALLOWED_DOMAINS = {"ge.movie"};
+    static final String[] ALLOWED_DOMAINS = {"ge.movie", "mykadri.tv", "geosaitebi.tv", "adjaranet.bet", "kinokadri.co"};
     /** true = ask the site for its desktop layout (usually best on a TV). */
     static final boolean DESKTOP_MODE = true;
     /** Page width in CSS pixels the site is laid out at (0 = leave the site's own setting). */
