@@ -133,6 +133,13 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 #det .btn{font-size:20px;padding:13px 30px}
 #det .btn.play{background:var(--red)}
 #det .btn.play.fx{background:#fff}
+#det .source-tile{display:inline-flex;flex-direction:column;align-items:flex-start;justify-content:center;
+  gap:2px;min-height:54px;padding:8px 14px!important;border-radius:9px!important;
+  background:rgba(255,255,255,.12);font-size:14px!important;line-height:1.1;vertical-align:middle}
+#det .source-tile b{font-size:14px;font-weight:700}
+#det .source-tile small{font-size:11px;color:var(--dim);margin:2px 0 0!important}
+#det .source-tile.fx{background:var(--red)!important;color:#fff!important;transform:scale(1.06)}
+#det .source-tile.fx small{color:#fff!important;opacity:.85}
 
 /* ---------- list overlay (filters) */
 #ov{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:20}
@@ -212,7 +219,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       notFound: 'ვერაფერი მოიძებნა', loadFail: 'ვერ ჩაიტვირთა', retry: 'თავიდან ცდა', site: 'ვებსაიტის გახსნა',
       page: 'გვერდი', clear: 'გასუფთავება', all: 'ყველა', watch: '▶ ყურება', resume: '▶ გაგრძელება',
       fromStart: '↺ თავიდან', forget: 'სიიდან წაშლა', trailer: '🎬 თრეილერი', back: 'უკან',
-      addList: '+ ჩემს სიაში', inList: '✓ ჩემს სიაშია', sources: 'სხვა საიტები', noVideo: 'ვიდეო ვერ მოიძებნა.',
+      addList: '+ ჩემს სიაში', inList: '✓ ჩემს სიაშია', sources: 'სხვა საიტები', sourcesHint: 'სხვა ფლეიერი', noVideo: 'ვიდეო ვერ მოიძებნა.',
       cwEmpty: 'ჯერ არაფერი გიყურებიათ. დაიწყე ფილმი და აქ გამოჩნდება.',
       listEmpty: 'სია ცარიელია. ფილმის გვერდზე დააჭირე „+ ჩემს სიაში“.', titles: 'სათაური',
       settings: 'პარამეტრები', checkUpd: '⟳ განახლების შემოწმება', version: 'ვერსია', language: 'ენა',
@@ -224,7 +231,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       notFound: 'Ничего не найдено', loadFail: 'Не удалось загрузить', retry: 'Повторить', site: 'Открыть сайт',
       page: 'Стр.', clear: 'Сбросить', all: 'Все', watch: '▶ Смотреть', resume: '▶ Продолжить',
       fromStart: '↺ Сначала', forget: 'Убрать', trailer: '🎬 Трейлер', back: 'Назад',
-      addList: '+ В мой список', inList: '✓ В моём списке', sources: 'Другие сайты', noVideo: 'Видео не найдено.',
+      addList: '+ В мой список', inList: '✓ В моём списке', sources: 'Другие сайты', sourcesHint: 'Другой плеер', noVideo: 'Видео не найдено.',
       cwEmpty: 'Вы ещё ничего не смотрели. Начните фильм, и он появится здесь.',
       listEmpty: 'Список пуст. На странице фильма нажмите «+ В мой список».', titles: 'назв.',
       settings: 'Настройки', checkUpd: '⟳ Проверить обновления', version: 'Версия', language: 'Язык',
@@ -236,7 +243,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       notFound: 'Nothing found', loadFail: "Couldn't load", retry: 'Try again', site: 'Open website',
       page: 'Page', clear: 'Clear', all: 'All', watch: '▶ Watch', resume: '▶ Resume',
       fromStart: '↺ From start', forget: 'Remove', trailer: '🎬 Trailer', back: 'Back',
-      addList: '+ My List', inList: '✓ In My List', sources: 'Other sites', noVideo: 'Video not found.',
+      addList: '+ My List', inList: '✓ In My List', sources: 'Other sites', sourcesHint: 'Alternative player', noVideo: 'Video not found.',
       cwEmpty: "You haven't watched anything yet. Start a movie and it will show here.",
       listEmpty: 'Your list is empty. On a movie page press "+ My List".', titles: 'titles',
       settings: 'Settings', checkUpd: '⟳ Check for updates', version: 'Version', language: 'Language',
@@ -833,12 +840,12 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
       var where = [epLabel(cw.ep), cw.t > 30 ? fmtTime(cw.t) : ''].filter(Boolean).join(' · ');
       return '<div class="bar"><span class="btn play f" data-act="resume">' + esc(T('resume')) + ' <small>' + esc(where) + '</small></span>' +
         '<span class="btn f" data-act="play">' + esc(T('fromStart')) + '</span>' + tr + ml +
-        '<span class="btn f" data-act="sources">' + esc(T('sources')) + '</span>' +
+        '<span class="btn source-tile f" data-act="sources"><b>' + esc(T('sources')) + '</b><small>' + esc(T('sourcesHint')) + '</small></span>' +
         '<span class="btn f" data-act="forget">' + esc(T('forget')) + '</span>' +
         '<span class="btn f" data-act="back">' + esc(T('back')) + '</span></div>';
     }
     return '<div class="bar"><span class="btn play f" data-act="play">' + esc(T('watch')) + '</span>' + tr + ml +
-      '<span class="btn f" data-act="sources">' + esc(T('sources')) + '</span>' +
+      '<span class="btn source-tile f" data-act="sources"><b>' + esc(T('sources')) + '</b><small>' + esc(T('sourcesHint')) + '</small></span>' +
       '<span class="btn f" data-act="back">' + esc(T('back')) + '</span></div>';
   }
 
@@ -968,6 +975,10 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   window.addEventListener('message', function (ev) {
     var d = ev.data;
     if (!d || !d.__tv) return;
+    if (playing && d.__tv.openSource && ev.source === playing.contentWindow) {
+      openSourceSearch(String(d.__tv.openSource));
+      return;
+    }
     if (playing && d.__tv.hello && ev.source === playing.contentWindow) post(startMsg);
     if (d.__tv.progress && playerWin && ev.source === playerWin) cwUpdate(playingItem, d.__tv.progress);
   });
