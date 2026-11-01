@@ -28,7 +28,7 @@ Your choices of quality, audio and subtitles are remembered for the next movie.
 
 ## Alternative movie sources
 
-On a movie's details screen, choose **Other sites** (the compact tile matching the
+On a movie's details screen, choose **Sources** (the compact tile matching the
 in-player controls) to search MyKadri, Geosaitebi, Adjaranet or Kinokadri by the movie's
 English title (or Georgian title when no English title is available). The selected site's
 own results page and player open inside the app. Use Back to return to MyMovie.
