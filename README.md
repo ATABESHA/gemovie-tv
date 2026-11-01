@@ -28,10 +28,14 @@ Your choices of quality, audio and subtitles are remembered for the next movie.
 
 ## Alternative movie sources
 
-On a movie's details screen, choose **Other sites** to search MyKadri, Geosaitebi,
-Adjaranet or Kinokadri by the movie's English title (or Georgian title when no English
-title is available). The selected site's own results page and player open inside the app.
-Use Back to return to MyMovie.
+On a movie's details screen, choose **Other sites** (the compact tile matching the
+in-player controls) to search MyKadri, Geosaitebi, Adjaranet or Kinokadri by the movie's
+English title (or Georgian title when no English title is available). The selected site's
+own results page and player open inside the app. Use Back to return to MyMovie.
+
+When a ge.movie Playerjs video is already open, press **Up** or **Down**, choose the
+**Sources** tile in the player control panel, then select the alternative site. This
+uses the same tile/list style as Audio, Quality and Subtitles.
 
 This is intentionally on-demand: the app does not contact these sites at startup, search
 all four in the background, create hidden player iframes, or download video files. Only
