@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyMovie Inspector</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--line:#262a33;--text:#e6e6e6;--dim:#8b93a1;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24;--acc:#60a5fa}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,"Noto Sans Georgian",sans-serif}
+header{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--line);background:#12151b;position:sticky;top:0;z-index:5}
+header h1{font-size:17px;margin:0;font-weight:650}
+header .where{color:var(--dim);font-size:13px}
+main{display:grid;grid-template-columns:300px 1fr;gap:0;min-height:calc(100vh - 50px)}
+aside{border-right:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:14px}
+section{padding:16px 18px;min-width:0}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin:0 0 8px;font-weight:600}
+label{display:block;color:var(--dim);font-size:12px;margin-bottom:4px}
+select,input,button{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:100%}
+button{cursor:pointer;background:#1f2937}
+button:hover{border-color:var(--acc)}
+button.primary{background:#1d4ed8;border-color:#1d4ed8}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:16px;overflow:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:600;position:sticky;top:0;background:var(--panel)}
+tr.click{cursor:pointer}
+tr.click:hover td{background:#1c2130}
+tr.sel td{background:#1e293b}
+td.mono,.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+td img{width:38px;height:57px;object-fit:cover;border-radius:4px;background:#222;display:block}
+.ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)} .dim{color:var(--dim)}
+.pill{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;background:#262a33;margin:1px 2px 1px 0}
+#log{max-height:240px}
+#log td{white-space:nowrap}
+#log td.url{white-space:normal;word-break:break-all}
+.kv{display:grid;grid-template-columns:170px 1fr;gap:4px 12px}
+.kv div:nth-child(odd){color:var(--dim)}
+.kv div{word-break:break-word}
+.summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.summary span{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+#intro{max-width:760px;margin:60px auto;padding:0 20px}
+#intro code,#intro pre{background:#161a22;border:1px solid var(--line);border-radius:8px}
+#intro pre{padding:12px;white-space:pre-wrap;word-break:break-all;font-size:12px}
+#intro ol li{margin:8px 0}
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+<!-- Shown when the file is opened from the disk: the browser won't let a local file read ge.movie. -->
+<div id="intro" class="hidden">
+  <h1>MyMovie Inspector</h1>
+  <p>This page reads ge.movie the same way the TV app does and shows every step live. Browsers don't allow a page opened from your disk to read another website, so it has to run <b>on ge.movie</b>:</p>
+  <ol>
+    <li>Open <a href="https://ge.movie/" target="_blank" style="color:var(--acc)">https://ge.movie/</a> in Chrome or Edge.</li>
+    <li>Press <b>F12</b> and open the <b>Console</b> tab. (The first time, Chrome may ask you to type <code>allow pasting</code>.)</li>
+    <li>Paste this line and press <b>Enter</b>:
+      <pre id="oneliner"></pre>
+      <button id="copy" style="width:auto">Copy the line</button> <span id="copied" class="ok"></span>
+    </li>
+  </ol>
+  <p class="dim">The line loads this same inspector from your GitHub repository into the ge.movie tab. Nothing is changed on the site; reloading the tab brings the normal site back.</p>
+</div>
+
+<div id="tool" class="hidden">
+<header><h1>MyMovie Inspector</h1><span class="where" id="where"></span>
+  <span style="margin-left:auto" class="dim">Same parsing code as the TV app (tvui.html)</span></header>
+<main>
+<aside>
+  <div>
+    <h2>Health check</h2>
+    <button class="primary" id="runAll">▶ Check everything</button>
+    <div class="dim" style="font-size:12px;margin-top:6px">Home, Movies, Series, Search and one details page — shows what works and what is missing.</div>
+  </div>
+  <div>
+    <h2>Load a list</h2>
+    <label>Source</label>
+    <select id="src">
+      <option value="new">Home — new releases (#კინოთეატრებში)</option>
+      <option value="movie">Movies — /filter-movies?type=movie</option>
+      <option value="serial">Series — /filter-movies?type=serial</option>
+      <option value="search">Search — /filter-movies?type=search</option>
+    </select>
+  </div>
+  <div id="searchBox" class="hidden"><label>Search text</label><input id="q" value="batman"></div>
+  <div class="row2">
+    <div><label>Page</label><input id="page" type="number" min="1" value="1"></div>
+    <div><label>&nbsp;</label><button id="nextPage">Next page →</button></div>
+  </div>
+  <div id="filters"></div>
+  <button class="primary" id="load">Load</button>
+  <div>
+    <h2>Options</h2>
+    <label><input type="checkbox" id="nocache" style="width:auto"> Ignore cache (always download again)</label>
+    <button id="clearLog">Clear log</button>
+  </div>
+</aside>
+<section>
+  <h2>Requests (live)</h2>
+  <div class="box" id="log"><table><thead><tr><th>Time</th><th>Page</th><th>Status</th><th>ms</th><th>KB</th><th>Found</th></tr></thead><tbody></tbody></table></div>
+
+  <div id="healthWrap" class="hidden"><h2>Health check result</h2><div class="box" id="health"></div></div>
+
+  <h2>Page parts the app relies on <span class="dim" id="selFor"></span></h2>
+  <div class="box" id="sel"><span class="dim">Load something to see which parts were found.</span></div>
+
+  <h2>Parsed list <span class="dim" id="listInfo"></span></h2>
+  <div class="box" id="list" style="max-height:520px"><span class="dim">Nothing loaded yet. Click a row to load its details.</span></div>
+
+  <h2>Details <span class="dim" id="detInfo"></span></h2>
+  <div class="box" id="det"><span class="dim">Click a title in the list.</span></div>
+</section>
+</main>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var REPO_RAW = 'https://raw.githubusercontent.com/ATABESHA/gemovie-tv/main/tools/inspector.html';
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function txt(root, sel) { var e = root.querySelector(sel); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; }
+  function tmdb(u, size) { return u ? u.replace('/t/p/original/', '/t/p/' + size + '/') : ''; }
+
+  // ------------------------------------------------ opened from disk: show how to run it
+  if (!/(^|\.)ge\.movie$/.test(location.hostname)) {
+    $('#intro').classList.remove('hidden');
+    var line = "fetch('" + REPO_RAW + "?t='+Date.now()).then(r=>r.text()).then(h=>{document.open();document.write(h);document.close()})";
+    $('#oneliner').textContent = line;
+    $('#copy').onclick = function () {
+      (navigator.clipboard ? navigator.clipboard.writeText(line) : Promise.reject()).then(function () {
+        $('#copied').textContent = '✓ copied';
+      }, function () { $('#copied').textContent = 'select the line and press Ctrl+C'; });
+    };
+    return;
+  }
+  $('#tool').classList.remove('hidden');
+  $('#where').textContent = 'running on ' + location.origin;
+
+  // ================================================= live request log
+  var logBody = $('#log tbody');
+  function logRow(url) {
+    var tr = document.createElement('tr');
+    var t = new Date();
+    tr.innerHTML = '<td class="mono">' + t.toTimeString().slice(0, 8) + '</td><td class="url mono">' + esc(decodeURIComponent(url)) +
+      '</td><td class="warn">…</td><td></td><td></td><td></td>';
+    logBody.insertBefore(tr, logBody.firstChild);
+    return tr;
+  }
+  $('#clearLog').onclick = function () { logBody.innerHTML = ''; };
+
+  // ================================================= the app's data code (same as tvui.html)
+  var docCache = new Map();
+  function getDoc(url) {
+    if ($('#nocache').checked) docCache.delete(url);
+    if (docCache.has(url)) {
+      var row = logRow(url);
+      row.children[2].innerHTML = '<span class="dim">cache</span>';
+      return docCache.get(url);
+    }
+    var tr = logRow(url), t0 = performance.now(), size = 0;
+    var p = fetch(url, { credentials: 'include' }).then(function (r) {
+      tr.children[2].innerHTML = r.ok ? '<span class="ok">' + r.status + '</span>' : '<span class="bad">' + r.status + '</span>';
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    }).then(function (h) {
+      size = h.length;
+      tr.children[3].textContent = Math.round(performance.now() - t0);
+      tr.children[4].textContent = (size / 1024).toFixed(0);
+      var d = new DOMParser().parseFromString(h, 'text/html');
+      d.__logRow = tr;
+      return d;
+    }, function (e) {
+      tr.children[3].textContent = Math.round(performance.now() - t0);
+      if (tr.children[2].textContent === '…') tr.children[2].innerHTML = '<span class="bad">' + esc(e.message) + '</span>';
+      throw e;
+    });
+    docCache.set(url, p);
+    p.catch(function () { docCache.delete(url); });
+    return p;
+  }
+  function found(doc, n, what) {
+    if (doc && doc.__logRow) doc.__logRow.children[5].innerHTML = '<span class="' + (n ? 'ok' : 'bad') + '">' + n + ' ' + what + '</span>';
+  }
+
+  function parseCard(c) {
+    var a = c.querySelector('a[href*="/movie/"],a[href*="/serial/"]');
+    if (!a) return null;
+    var url = a.getAttribute('href');
+    var img = c.querySelector('img[data-src]') || c.querySelector('img');
+    var poster = img ? (img.getAttribute('data-src') || img.getAttribute('src') || '') : '';
+    if (/thumb\.svg|poster\.svg/.test(poster)) poster = '';
+    var tA = c.querySelector('h2 a[title]') || c.querySelector('a[title]') || a;
+    var both = (tA.getAttribute('title') || '').split(' / ');
+    var p = c.querySelector('h2 p'), sp = c.querySelector('h2 span');
+    var eps = c.querySelector('.gm-card-episodes:not([hidden]) .gm-episode-text');
+    return {
+      url: url, serial: /\/serial\//.test(url), cardClass: c.className.split(' ')[0],
+      title: p ? p.textContent.trim() : both[0], en: sp ? sp.textContent.trim() : (both[1] || ''),
+      poster: tmdb(poster, 'w342'), bg: tmdb(img && img.getAttribute('bg') || '', 'w1280'),
+      rating: txt(c, '.imdb span'), year: txt(c, '.gm-year-value'),
+      eps: eps && !/S00\s*\/\s*E00/.test(eps.textContent) ? eps.textContent.trim() : '',
+      langs: $$('.gm-language-text', c).map(function (e) { return e.textContent.trim().toUpperCase(); })
+    };
+  }
+  var CARD_SEL = '.movie-card, .filter-result-card, .popular-card, .serials-card';
+  function parseCards(root) {
+    var seen = {}, out = [];
+    $$(CARD_SEL, root).forEach(function (c) {
+      var it = parseCard(c);
+      if (it && !seen[it.url]) { seen[it.url] = 1; out.push(it); }
+    });
+    return out;
+  }
+  function loadNew() {
+    return getDoc('/').then(function (doc) {
+      var a = $$('a[href*="#"]', doc).filter(function (x) {
+        var h = x.getAttribute('href') || '';
+        try { h = decodeURIComponent(h); } catch (e) {}
+        return h.indexOf('#კინოთეატრებში') >= 0;
+      })[0];
+      var sec = a && (a.closest('section') || a.parentElement.parentElement);
+      var via = a ? 'link #კინოთეატრებში' : '';
+      if (!sec && doc.getElementById('block_cinemas')) { sec = doc.getElementById('block_cinemas'); via = 'fallback #block_cinemas'; }
+      var items = sec ? parseCards(sec) : [];
+      found(doc, items.length, 'titles');
+      return { doc: doc, title: sec ? (txt(sec, '.section-title') || 'კინოთეატრებში') : '—', items: items, via: via, anchor: !!a };
+    });
+  }
+  function qs(params) {
+    var s = '';
+    Object.keys(params || {}).forEach(function (k) {
+      if (params[k] !== '' && params[k] != null) s += '&' + k + '=' + encodeURIComponent(params[k]);
+    });
+    return s;
+  }
+  function listUrl(type, params, page) { return '/filter-movies?type=' + type + qs(params) + (page > 1 ? '&page=' + page : ''); }
+  function loadList(type, params, page) {
+    return getDoc(listUrl(type, params, page)).then(function (doc) {
+      var nums = $$('.pagination a', doc).map(function (a) { return parseInt(a.textContent, 10) || 0; });
+      var items = parseCards(doc.querySelector('.mlist') || doc);
+      found(doc, items.length, 'titles');
+      return { doc: doc, items: items, pages: Math.max.apply(null, [page].concat(nums)), mlist: !!doc.querySelector('.mlist') };
+    });
+  }
+  function parseFilters(doc) {
+    var defs = [['genre', 'genres[]', 'Genre'], ['translation', 'languages', 'Dubbing'],
+      ['country', 'countries', 'Country'], ['sort', 'sort', 'Sort']];
+    return defs.map(function (d) {
+      var fi = doc.querySelector('.filter-dropdowns .filter-item.' + d[0]);
+      if (!fi) return { name: d[1], label: d[2], opts: [], missing: true };
+      var opts = $$('input[name="' + d[1] + '"]', fi).map(function (i) {
+        return { v: i.value, t: ((i.closest('label') || {}).textContent || i.value).replace(/\s+/g, ' ').trim() };
+      }).filter(function (o) { return o.v !== ''; });
+      return { name: d[1], label: d[2], opts: opts };
+    });
+  }
+  function loadDetails(item) {
+    return getDoc(item.url).then(function (doc) {
+      var sc = doc.querySelector('.scenere');
+      var parts = sc ? $$('.desc', sc).filter(function (d) { return !d.classList.contains('mb-2'); }) : [];
+      var plot = parts.map(function (d) { return d.textContent.replace(/\s+/g, ' ').trim(); }).join(' ');
+      var plotFrom = plot ? '.scenere .desc' : '';
+      if (!plot) { var m = doc.querySelector('meta[name=description]'); plot = m ? m.content : ''; if (plot) plotFrom = 'meta description (fallback)'; }
+      var facts = {};
+      $$('.gm-watch-fact', doc).forEach(function (f) {
+        var t = f.textContent.replace(/\s+/g, ' ').trim(), i = t.indexOf(':');
+        if (i > 0) facts[t.slice(0, i).trim()] = t.slice(i + 1).trim();
+      });
+      var fr = doc.querySelector('iframe#movie_embed, iframe#serial_embed, iframe[src*="embed"]');
+      var og = doc.querySelector('meta[property="og:image"]');
+      var ym = /(?:youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?v=|v\/)|youtu\.be\/)([\w-]{11})/.exec(doc.documentElement.innerHTML);
+      var src = fr ? (fr.getAttribute('src') || fr.getAttribute('data-src') || '') : '';
+      var tm = /[?&]tmdb_id=(\d+)/.exec(src);
+      found(doc, Object.keys(facts).length + (plot ? 1 : 0) + (fr ? 1 : 0), 'fields');
+      return { doc: doc, plot: plot, plotFrom: plotFrom, facts: facts, imdb: txt(doc, '.fullimdb') || item.rating,
+        embed: src, playerId: fr ? (fr.id || '(no id)') : '', tmdb: tm ? { id: tm[1], kind: /type=serial/.test(src) || item.serial ? 'tv' : 'movie' } : null,
+        bg: og ? tmdb(og.content, 'w1280') : '', title: txt(doc, 'h1').split('•')[0].trim(), trailer: ym ? ym[1] : '' };
+    });
+  }
+
+  // ================================================= "page parts" check
+  var CHECKS = {
+    home: [
+      ['Link #კინოთეატრებში (new releases)', function (d) { return $$('a[href*="#"]', d).filter(function (x) { var h = x.getAttribute('href') || ''; try { h = decodeURIComponent(h); } catch (e) {} return h.indexOf('#კინოთეატრებში') >= 0; }).length; }],
+      ['#block_cinemas (fallback)', function (d) { return d.querySelectorAll('#block_cinemas').length; }],
+      ['.movie-card (home cards)', function (d) { return d.querySelectorAll('.movie-card').length; }]
+    ],
+    list: [
+      ['.mlist (list container)', function (d) { return d.querySelectorAll('.mlist').length; }],
+      ['Cards: ' + CARD_SEL, function (d) { return d.querySelectorAll(CARD_SEL).length; }],
+      ['Card links a[href*=/movie/ or /serial/]', function (d) { return d.querySelectorAll('.mlist a[href*="/movie/"], .mlist a[href*="/serial/"]').length; }],
+      ['Posters img[data-src]', function (d) { return d.querySelectorAll('.mlist img[data-src]').length; }],
+      ['Titles h2 p', function (d) { return d.querySelectorAll('.mlist h2 p').length; }],
+      ['.pagination a (page numbers)', function (d) { return d.querySelectorAll('.pagination a').length; }],
+      ['.filter-dropdowns (filters)', function (d) { return d.querySelectorAll('.filter-dropdowns').length; }],
+      ['  .filter-item.genre', function (d) { return d.querySelectorAll('.filter-dropdowns .filter-item.genre input').length; }],
+      ['  .filter-item.translation', function (d) { return d.querySelectorAll('.filter-dropdowns .filter-item.translation input').length; }],
+      ['  .filter-item.country', function (d) { return d.querySelectorAll('.filter-dropdowns .filter-item.country input').length; }],
+      ['  .filter-item.sort', function (d) { return d.querySelectorAll('.filter-dropdowns .filter-item.sort input').length; }]
+    ],
+    details: [
+      ['.scenere .desc (description)', function (d) { return d.querySelectorAll('.scenere .desc').length; }],
+      ['.gm-watch-fact (genre, director, age…)', function (d) { return d.querySelectorAll('.gm-watch-fact').length; }],
+      ['.fullimdb (IMDb rating)', function (d) { return d.querySelectorAll('.fullimdb').length; }],
+      ['meta og:image (backdrop)', function (d) { return d.querySelectorAll('meta[property="og:image"]').length; }],
+      ['Player iframe #movie_embed / #serial_embed', function (d) { return d.querySelectorAll('iframe#movie_embed, iframe#serial_embed').length; }],
+      ['  tmdb_id in the player address', function (d) { var f = d.querySelector('iframe#movie_embed, iframe#serial_embed'); return f && /tmdb_id=\d+/.test(f.getAttribute('src') || '') ? 1 : 0; }],
+      ['YouTube link (trailer)', function (d) { return /youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?v=)|youtu\.be\//.test(d.documentElement.innerHTML) ? 1 : 0; }]
+    ]
+  };
+  function checkRows(kind, doc) {
+    return CHECKS[kind].map(function (c) { var n = 0; try { n = c[1](doc); } catch (e) {} return { name: c[0], n: n }; });
+  }
+  function showChecks(kind, doc, label) {
+    $('#selFor').textContent = '— ' + label;
+    var rows = checkRows(kind, doc);
+    $('#sel').innerHTML = '<table><thead><tr><th></th><th>Part</th><th>Found</th></tr></thead><tbody>' + rows.map(function (r) {
+      var optional = /fallback|YouTube|\.fullimdb/.test(r.name);
+      var cls = r.n ? 'ok' : optional ? 'warn' : 'bad';
+      return '<tr><td class="' + cls + '">' + (r.n ? '✓' : optional ? '–' : '✗') + '</td><td class="mono">' + esc(r.name) + '</td><td>' + r.n + '</td></tr>';
+    }).join('') + '</tbody></table>';
+    return rows;
+  }
+
+  // ================================================= list + details views
+  var current = [];
+  function showList(items, info) {
+    current = items;
+    $('#listInfo').textContent = info;
+    if (!items.length) { $('#list').innerHTML = '<span class="bad">No titles found.</span>'; return; }
+    $('#list').innerHTML = '<table><thead><tr><th>#</th><th>Poster</th><th>Title</th><th>English</th><th>Year</th><th>IMDb</th><th>Audio</th><th>Episodes</th><th>Card</th><th>Link</th></tr></thead><tbody>' +
+      items.map(function (it, i) {
+        return '<tr class="click" data-i="' + i + '"><td class="dim">' + (i + 1) + '</td><td>' + (it.poster ? '<img loading="lazy" src="' + esc(it.poster) + '">' : '<span class="bad">none</span>') +
+          '</td><td>' + esc(it.title) + (it.serial ? ' <span class="pill">series</span>' : '') + '</td><td class="dim">' + esc(it.en) + '</td><td>' + esc(it.year) +
+          '</td><td>' + esc(it.rating) + '</td><td>' + it.langs.map(function (l) { return '<span class="pill">' + esc(l) + '</span>'; }).join('') +
+          '</td><td>' + esc(it.eps) + '</td><td class="mono dim">' + esc(it.cardClass) + '</td><td class="mono dim">' + esc(it.url.replace(/^https?:\/\/[^/]+/, '')) + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    $$('#list tr.click').forEach(function (tr) {
+      tr.onclick = function () {
+        $$('#list tr.sel').forEach(function (x) { x.classList.remove('sel'); });
+        tr.classList.add('sel');
+        openDetails(current[+tr.dataset.i]);
+      };
+    });
+  }
+  function openDetails(it) {
+    $('#detInfo').textContent = '— ' + it.title;
+    $('#det').innerHTML = '<span class="dim">Loading…</span>';
+    loadDetails(it).then(function (d) {
+      showChecks('details', d.doc, 'details page');
+      var kv = [
+        ['Page', '<span class="mono">' + esc(it.url) + '</span>'],
+        ['Title (h1)', esc(d.title)],
+        ['IMDb', esc(d.imdb)],
+        ['Description', d.plot ? esc(d.plot) + '<br><span class="dim">from ' + esc(d.plotFrom) + '</span>' : '<span class="bad">none</span>']
+      ];
+      Object.keys(d.facts).forEach(function (k) { kv.push(['Fact: ' + esc(k), esc(d.facts[k])]); });
+      kv.push(['Player', d.embed ? '<span class="mono">' + esc(d.playerId) + '</span> → <span class="mono">' + esc(d.embed) + '</span>' : '<span class="bad">no player found</span>']);
+      kv.push(['TMDB (for translations)', d.tmdb ? esc(d.tmdb.kind + ' / ' + d.tmdb.id) : '<span class="warn">no tmdb_id</span>']);
+      kv.push(['Trailer (YouTube id)', d.trailer ? '<span class="mono">' + esc(d.trailer) + '</span>' : '<span class="warn">none on the page (the app would search YouTube)</span>']);
+      kv.push(['Backdrop', d.bg ? '<img src="' + esc(d.bg) + '" style="max-width:360px;border-radius:6px;display:block">' : '<span class="warn">none</span>']);
+      $('#det').innerHTML = '<div class="kv">' + kv.map(function (x) { return '<div>' + x[0] + '</div><div>' + x[1] + '</div>'; }).join('') + '</div>';
+    }).catch(function (e) { $('#det').innerHTML = '<span class="bad">' + esc(e.message) + '</span>'; });
+  }
+
+  // ================================================= controls
+  var FILTERS = null, params = {};
+  function renderFilters() {
+    var box = $('#filters');
+    var type = $('#src').value;
+    if (!FILTERS || type === 'new' || type === 'search') { box.innerHTML = ''; return; }
+    box.innerHTML = FILTERS.map(function (f, i) {
+      return '<div style="margin-bottom:8px"><label>' + esc(f.label) + (f.missing ? ' <span class="bad">(missing on page)</span>' : ' <span class="dim">(' + f.opts.length + ')</span>') + '</label>' +
+        '<select data-f="' + esc(f.name) + '"><option value="">— all —</option>' + f.opts.map(function (o) {
+          return '<option value="' + esc(o.v) + '"' + (params[f.name] === o.v ? ' selected' : '') + '>' + esc(o.t) + '</option>';
+        }).join('') + '</select></div>';
+    }).join('');
+    $$('select[data-f]', box).forEach(function (s) { s.onchange = function () { params[s.dataset.f] = s.value; $('#page').value = 1; }; });
+  }
+  $('#src').onchange = function () {
+    $('#searchBox').classList.toggle('hidden', $('#src').value !== 'search');
+    params = {}; $('#page').value = 1; renderFilters();
+  };
+  $('#nextPage').onclick = function () { $('#page').value = (+$('#page').value || 1) + 1; load(); };
+  $('#load').onclick = load;
+
+  function load() {
+    var type = $('#src').value, page = +$('#page').value || 1, t0 = performance.now();
+    if (type === 'new') {
+      return loadNew().then(function (r) {
+        showChecks('home', r.doc, 'home page');
+        showList(r.items, '— "' + r.title + '", ' + r.items.length + ' titles, block found via ' + (r.via || 'nothing') + ', ' + Math.round(performance.now() - t0) + ' ms');
+      }).catch(fail);
+    }
+    var p = type === 'search' ? { search: $('#q').value } : params;
+    return loadList(type, p, page).then(function (r) {
+      if (type !== 'search' && !FILTERS) { FILTERS = parseFilters(r.doc); renderFilters(); }
+      showChecks('list', r.doc, listUrl(type, p, page));
+      showList(r.items, '— page ' + page + ' of ' + r.pages + ', ' + r.items.length + ' titles, ' + Math.round(performance.now() - t0) + ' ms');
+    }).catch(fail);
+  }
+  function fail(e) { $('#list').innerHTML = '<span class="bad">Failed: ' + esc(e.message) + '</span>'; }
+
+  // ================================================= health check
+  $('#runAll').onclick = function () {
+    var out = [], t0 = performance.now();
+    $('#healthWrap').classList.remove('hidden');
+    $('#health').innerHTML = '<span class="dim">Checking…</span>';
+    function step(name, fn) {
+      return fn().then(function (r) { out.push({ name: name, ok: r.ok, note: r.note }); }, function (e) { out.push({ name: name, ok: false, note: e.message }); });
+    }
+    var firstMovie = null, firstSerial = null;
+    step('Home: new releases row', function () {
+      return loadNew().then(function (r) { return { ok: r.items.length > 0, note: r.items.length + ' titles via ' + (r.via || 'nothing — link #კინოთეატრებში and #block_cinemas both missing') }; });
+    }).then(function () {
+      return step('Movies list', function () {
+        return loadList('movie', {}, 1).then(function (r) {
+          firstMovie = r.items[0];
+          var f = parseFilters(r.doc), miss = f.filter(function (x) { return x.missing || !x.opts.length; }).map(function (x) { return x.label; });
+          return { ok: r.items.length > 0 && r.pages > 1, note: r.items.length + ' titles, ' + r.pages + ' pages' + (miss.length ? ' — filters missing: ' + miss.join(', ') : ', all 4 filters found') };
+        });
+      });
+    }).then(function () {
+      return step('Series list', function () {
+        return loadList('serial', {}, 1).then(function (r) { firstSerial = r.items[0]; return { ok: r.items.length > 0, note: r.items.length + ' titles, ' + r.pages + ' pages' }; });
+      });
+    }).then(function () {
+      return step('Filter works (genre = drama)', function () {
+        return loadList('movie', { 'genres[]': 'drama' }, 1).then(function (r) { return { ok: r.items.length > 0, note: r.items.length + ' titles, ' + r.pages + ' pages' }; });
+      });
+    }).then(function () {
+      return step('Search ("batman")', function () {
+        return loadList('search', { search: 'batman' }, 1).then(function (r) { return { ok: r.items.length > 0, note: r.items.length + ' results' }; });
+      });
+    }).then(function () {
+      return step('Movie details page', function () {
+        if (!firstMovie) return Promise.reject(new Error('no movie to open'));
+        return loadDetails(firstMovie).then(function (d) {
+          var miss = [];
+          if (!d.plot) miss.push('description');
+          if (!Object.keys(d.facts).length) miss.push('facts');
+          if (!d.embed) miss.push('player');
+          if (!d.tmdb) miss.push('tmdb_id');
+          return { ok: !!d.embed && !!d.plot, note: firstMovie.title + (miss.length ? ' — missing: ' + miss.join(', ') : ' — description, ' + Object.keys(d.facts).length + ' facts, player, tmdb_id all found') };
+        });
+      });
+    }).then(function () {
+      return step('Series details page', function () {
+        if (!firstSerial) return Promise.reject(new Error('no series to open'));
+        return loadDetails(firstSerial).then(function (d) {
+          return { ok: !!d.embed, note: firstSerial.title + (d.embed ? ' — player ' + d.playerId : ' — no player found') };
+        });
+      });
+    }).then(function () {
+      var good = out.filter(function (x) { return x.ok; }).length;
+      $('#health').innerHTML = '<div class="summary"><span class="' + (good === out.length ? 'ok' : 'bad') + '">' + good + ' / ' + out.length + ' OK</span><span class="dim">' +
+        Math.round(performance.now() - t0) + ' ms</span></div><table><tbody>' + out.map(function (x) {
+          return '<tr><td class="' + (x.ok ? 'ok' : 'bad') + '">' + (x.ok ? '✓' : '✗') + '</td><td>' + esc(x.name) + '</td><td class="dim">' + esc(x.note) + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    });
+  };
+
+  // start: show the home row
+  load();
+})();
+</script>
+</body>
+</html>
