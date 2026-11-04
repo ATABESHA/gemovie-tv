@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GE Inspector</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--line:#262a33;--text:#e6e6e6;--dim:#8b93a1;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24;--acc:#60a5fa}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,"Noto Sans Georgian",sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:22px 20px 60px}
+h1{margin:0;font-size:24px}
+h2{margin:32px 0 6px;font-size:19px;border-top:1px solid var(--line);padding-top:22px}
+h3{margin:20px 0 8px;font-size:14px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.dim{color:var(--dim)} .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:13px;word-break:break-all}
+.bar{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 0 12px;border-bottom:1px solid var(--line)}
+.row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+#url{flex:1;min-width:260px;font:15px ui-monospace,Consolas,monospace;padding:11px 13px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--text)}
+#url:focus{outline:2px solid var(--acc)}
+button{font:inherit;padding:10px 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer}
+button.main{background:#1d4ed8;border-color:#1d4ed8;color:#fff;font-weight:600}
+button:disabled{opacity:.5;cursor:default}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.quick a{font-size:13px;color:var(--dim);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+.quick a:hover,.go:hover{color:var(--acc);border-color:var(--acc)}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.facts span{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:14px}
+.facts b{color:var(--acc);font-weight:600}
+table{border-collapse:collapse;width:100%;font-size:14px;background:var(--panel);border:1px solid var(--line)}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:600;background:#1a1e26}
+tr.used td{background:rgba(74,222,128,.07)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer}
+.card:hover{border-color:var(--acc)}
+.card img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:#222}
+.card .b{padding:7px 9px}
+.card .t{font-weight:600;font-size:14px}
+.card .e{color:var(--dim);font-size:12px}
+.pill{display:inline-block;padding:0 7px;border-radius:999px;font-size:11px;background:#262a33;margin:3px 3px 0 0}
+.pill.y{background:#3b2f0b;color:#fbbf24}
+.note{background:#1a2333;border:1px solid #29406b;border-radius:10px;padding:12px 15px;margin:12px 0}
+.note.bad{background:#2a1515;border-color:#6b2929;color:var(--text)}
+.kv{display:grid;grid-template-columns:210px 1fr;gap:6px 16px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.kv>div:nth-child(odd){color:var(--dim)}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tags span,.tags a{background:#20242d;border-radius:6px;padding:2px 8px;font-size:13px;color:var(--text);text-decoration:none}
+.go{color:var(--acc);cursor:pointer;text-decoration:none}
+.backdrop{max-width:460px;width:100%;border-radius:10px;display:block}
+details{margin:8px 0}
+summary{cursor:pointer;color:var(--dim)}
+textarea{width:100%;height:140px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:10px;font:12px ui-monospace,Consolas,monospace}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--dim);border-top-color:transparent;border-radius:50%;animation:s 1s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body><div class="wrap">
+<div class="bar">
+  <h1>GE Inspector <span class="dim" style="font-size:14px;font-weight:400">— what the MyMovie TV app sees on a ge.movie page</span></h1>
+  <div class="row">
+    <button id="back" title="Previous page">←</button>
+    <input id="url" placeholder="Paste a ge.movie address, e.g. https://ge.movie/filter-movies?type=movie" autocomplete="off" spellcheck="false">
+    <button id="go" class="main">Check</button>
+  </div>
+  <div class="quick">
+    <span class="dim" style="font-size:13px">Quick:</span>
+    <a href="#" data-u="https://ge.movie/">Home</a>
+    <a href="#" data-u="https://ge.movie/filter-movies?type=movie">Movies</a>
+    <a href="#" data-u="https://ge.movie/filter-movies?type=serial">Series</a>
+    <a href="#" data-u="https://ge.movie/filter-movies?type=trailer">Coming soon</a>
+    <a href="#" data-u="https://ge.movie/filter-movies?type=search&amp;search=batman">Search "batman"</a>
+  </div>
+</div>
+<div id="out"><div class="note">Paste any ge.movie address above and press <b>Check</b> (or Enter). You can also click any title, page number or link in the results to check that page.</div></div>
+</div>
+<script src="inspector.js"></script>
+</body></html>
