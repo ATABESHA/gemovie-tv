@@ -4,6 +4,7 @@
   'use strict';
   var BASE = 'https://ge.movie';
   var CARD_SEL = '.movie-card, .filter-result-card, .popular-card, .serials-card';
+  var FILTER_NAMES = { type: 'Category', genre: 'ჟანრი (genre)', year: 'წელი (year)', translation: 'გახმოვანება (dubbing)', country: 'ქვეყანა (country)', studio: 'სტუდია (studio)', imdb: 'IMDb', sort: 'სორტირება (sort)' };
   var USED_FILTERS = { genre: 'genres[]', translation: 'languages', country: 'countries', sort: 'sort' };
 
   function $(s, r) { return (r || document).querySelector(s); }
@@ -208,7 +209,7 @@
         return clean((i.closest('label') || {}).textContent || i.value);
       });
       var range = inputs.filter(function (i) { return i.type === 'range' || i.type === 'number'; });
-      var label = txt(fi, '.filter-title') || txt(fi, 'button') || txt(fi, 'span') || kind;
+      var label = FILTER_NAMES[kind] || txt(fi, '.filter-title') || kind;
       var used = USED_FILTERS[kind];
       var nm = Object.keys(names).join(', ') || '—';
       var choice = opts.length ? opts.length : range.length ? 'slider ' + (range[0].min || '') + '–' + (range[range.length - 1].max || '') : '—';
@@ -243,7 +244,7 @@
     var plot = parts.map(function (d) { return clean(d.textContent); }).join(' ');
     var plotFrom = plot ? '.scenere .desc' : '';
     if (!plot) { var m = doc.querySelector('meta[name=description]'); plot = m ? m.content : ''; if (plot) plotFrom = 'meta description (fallback)'; }
-    var facts = $$('.gm-watch-fact', doc).map(function (f) { return clean(f.textContent); }).filter(Boolean);
+    var facts = $$('.gm-watch-fact', doc).map(function (f) { return clean(f.textContent).replace(/\s*:\s*/, ': '); }).filter(Boolean);
     var age = facts.filter(function (f) { return /ასაკობრივი/.test(f); })[0] || '';
     var fr = doc.querySelector('iframe#movie_embed, iframe#serial_embed, iframe[src*="embed"], iframe[src*="player"]');
     var src = fr ? (fr.getAttribute('src') || fr.getAttribute('data-src') || '') : '';
@@ -318,7 +319,7 @@
       (p.ms != null ? '<span>Loaded in <b>' + p.ms + ' ms</b></span>' : '') + '<span>Checked <b>' + new Date().toLocaleTimeString() + '</b></span></div>' +
       '<div class="kv"><div>Page title</div><div>' + esc(title || '—') + '</div><div>Description (meta)</div><div>' + esc(short(desc ? desc.content : '—', 300)) + '</div></div>';
     if (!p.ok) h += '<div class="note bad">The site answered with an error (' + p.status + '). The TV app would show nothing for this page.</div>';
-    if (/cf-challenge|challenge-platform|Just a moment/i.test(p.html)) h += '<div class="note bad">The site showed a "checking your browser" page instead of content. The TV app would see nothing here.</div>';
+    if (/<title>\s*Just a moment|id="challenge-form"|cf-chl-widget/i.test(p.html)) h += '<div class="note bad">The site showed a "checking your browser" page instead of content. The TV app would see nothing here.</div>';
 
     h += checksHtml(kind, doc);
     h += '<h2>What the app reads here</h2>';
