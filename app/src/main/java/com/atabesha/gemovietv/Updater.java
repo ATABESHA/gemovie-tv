@@ -27,15 +27,16 @@ import java.nio.charset.StandardCharsets;
 /**
  * Checks GitHub for a newer build and installs it. Two release channels are checked,
  * and the newer one wins:
- *   "latest" - the TV release        (gemovie-tv.apk + version.txt)
- *   "test"   - every build of main    (gemovie-tv-test.apk + version.txt)
+ *   "latest" - the TV release        (gemovie-tv.apk / gemovie-mobile.apk + version.txt)
+ *   "test"   - every build of main    (gemovie-tv-test.apk / gemovie-mobile-test.apk + version.txt)
+ * The TV build fetches the gemovie-tv files, the phone/tablet build the gemovie-mobile ones.
  * Runs by itself at start-up (then at most every 6 h) and from the app's Update button.
  */
 final class Updater {
     static final String REPO = "https://github.com/ATABESHA/gemovie-tv/releases/download/";
     static final String[][] CHANNELS = {
-            {"latest", "gemovie-tv.apk"},
-            {"test", "gemovie-tv-test.apk"},
+            {"latest", BuildConfig.APK_NAME + ".apk"},
+            {"test", BuildConfig.APK_NAME + "-test.apk"},
     };
     private static final long CHECK_EVERY_MS = 6 * 60 * 60 * 1000L;
 
@@ -133,7 +134,7 @@ final class Updater {
             try {
                 File dir = new File(act.getCacheDir(), "updates");
                 if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("no cache dir");
-                File apk = new File(dir, "gemovie-tv.apk");
+                File apk = new File(dir, BuildConfig.APK_NAME + ".apk");
                 HttpURLConnection c = open(apkUrl);
                 try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(apk)) {
                     byte[] buf = new byte[64 * 1024];

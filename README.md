@@ -5,6 +5,50 @@ TV remote, Netflix-style: no mouse pointer, a red highlight moves between items.
 
 Made for Sony Bravia 4K UR2 (Android TV 10), works on any Android TV / Google TV.
 
+## Phones and tablets
+
+The same app also comes in versions for touch screens. They use the same screens
+(`tvui.html`) and the same player script (`tvnav.js`), so a change there reaches all of them.
+
+| App | File | For |
+|---|---|---|
+| MyMovie TV | `gemovie-tv.apk` | Android TV (remote) |
+| MyMovie (phone/tablet) | `gemovie-mobile.apk` | Android phones and tablets |
+| MyMovie (iPhone/iPad) | `gemovie-ios.ipa` | iPhone and iPad |
+
+All three are on the release page after each build:
+`https://github.com/ATABESHA/gemovie-tv/releases`
+(test builds have `-test` in the name).
+
+On a phone or tablet:
+- Tap a poster to open it, tap **▶** to watch. Rows scroll sideways with a finger; lists load
+  more as you scroll down.
+- The movie turns the screen sideways and uses the player's own controls (audio, quality,
+  subtitles…). The **‹** button (top right during a movie) or the phone's Back closes it.
+- iPhone has no Back button: use the **‹** button, or swipe in from the left edge.
+
+### Android phone or tablet
+Open the release page on the phone, download `gemovie-mobile.apk` and open it (allow
+installing from the browser when asked). It installs next to the TV app and updates itself
+the same way.
+
+### iPhone / iPad
+Apple only lets apps from the App Store install by themselves, so the iPhone app is installed
+from a computer:
+1. On the Windows PC install **Sideloadly** (sideloadly.io) and iTunes (from apple.com, not the
+   Microsoft Store).
+2. Download `gemovie-ios.ipa` from the release page.
+3. Connect the iPhone by cable, drag the `.ipa` onto Sideloadly, enter your Apple ID, Start.
+4. On the iPhone: Settings → General → VPN & Device Management → trust your Apple ID.
+   (iOS 16+: also turn on Settings → Privacy & Security → Developer Mode.)
+
+With a free Apple ID the app stops opening after **7 days**: run Sideloadly again (Sideloadly
+can refresh it by itself over Wi-Fi). A paid Apple Developer account ($99/year) lasts a year.
+The app tells you when a newer build is on GitHub; installing it is the same steps.
+
+The iPhone project is in `ios/` (Swift). The Mac at GitHub builds it; to build it yourself on
+a Mac: `brew install xcodegen`, then `cd ios && xcodegen` and open `GeMovie.xcodeproj`.
+
 ## ge.movie layout
 
 - **Two zones**: the left menu (მთავარი, ფილმები, სერიალები, მალე, ტელევიზია, მსახიობები)
@@ -23,8 +67,8 @@ Made for Sony Bravia 4K UR2 (Android TV 10), works on any Android TV / Google TV
 | In the panel | ◀ ▶ choose a tile, OK (or ▲) opens its list (✓ = current), ▲ ▼ pick, OK sets it |
 | Back | Closes the list, then the panel, then leaves the player |
 
-Quality starts at **1080p** (the player itself picks 4K, which is too heavy for the TV).
-Your choices of quality, audio and subtitles are remembered for the next movie.
+Quality starts at the **highest available** (often 4K). Audio starts in the movie language
+from the settings; your subtitle choice is remembered for the next movie.
 
 ## Remote controls (other sites)
 
@@ -52,7 +96,8 @@ seconds buffered, stalls and memory. Press again to close.
 
 - **Every push to `main`** builds a **test** APK only:
   `https://github.com/ATABESHA/gemovie-tv/releases/download/test/gemovie-tv-test.apk`.
-  The TV never sees it.
+  Note: the app's updater checks both channels and offers whichever is newer, so the TV
+  is offered test builds too.
 - **To send a version to the TV**, push a tag named `tv-…` (e.g. `tv-5`), or open
   Actions → Build APK → Run workflow and tick **Publish to TV**. The TV app then offers
   the update.

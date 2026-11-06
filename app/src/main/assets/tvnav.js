@@ -14,6 +14,9 @@
 
   var App = window.TVApp;
   var TOP = window.top === window;
+  // Phones and tablets (touch) keep the player's own on-screen controls;
+  // the TV (remote) gets the app's own panel instead. Set by the app.
+  var TOUCH = '__MODE__' === 'touch';
 
   function call(name, arg) {
     try { if (App && App[name]) App[name](arg); } catch (e) {}
@@ -356,7 +359,7 @@
   // Time bar shown after play/pause and while seeking with the arrows.
   var barTimer = null;
   function showBar(label, at) {
-    if (PL.open) return;
+    if (PL.open || TOUCH) return;
     addPanelStyle();
     var host = overlayHost();
     if (!host) return;
@@ -540,7 +543,7 @@
       api('play');
       loadPlaylist();
       applyPrefs();
-      cleanWhenReady();
+      if (!TOUCH) cleanWhenReady();
       if (resume && resume.ep) {
         // Series: go to the saved episode first (the player may still be loading its list),
         // then to the saved time in it.

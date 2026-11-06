@@ -1,8 +1,13 @@
-name: Build APK
+name: Build apps
 
+# Builds three apps from the same code:
+#   gemovie-tv.apk      Android TV (remote control)
+#   gemovie-mobile.apk  Android phones and tablets (touch)
+#   gemovie-ios.ipa     iPhone and iPad (unsigned: install it with Sideloadly / AltStore)
+#
 # Two channels:
-#  - every push to main  -> TEST build  (release "test", for BlueStacks / PC)
-#  - a tag named tv-*    -> TV release  (release "latest", the TV offers it as an update)
+#  - every push to main  -> TEST builds (release "test", files end in -test)
+#  - a tag named tv-*    -> release "latest" (the apps offer it as an update)
 #    or run this workflow by hand with "Publish to TV" ticked.
 on:
   push:
@@ -12,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       publish_to_tv:
-        description: 'Publish to TV (the TV app will offer this update)'
+        description: 'Publish to TV (the apps will offer this update)'
         type: boolean
         default: false
 
@@ -24,11 +29,12 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  TO_TV: ${{ startsWith(github.ref, 'refs/tags/tv-') || inputs.publish_to_tv == true }}
+
 jobs:
-  build:
+  android:
     runs-on: ubuntu-latest
-    env:
-      TO_TV: ${{ startsWith(github.ref, 'refs/tags/tv-') || inputs.publish_to_tv == true }}
     steps:
       - uses: actions/checkout@v4
 
@@ -46,39 +52,80 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Build
-        run: gradle --no-daemon -PversionCode=${{ github.run_number }} assembleRelease
+      - name: Build TV and phone/tablet apps
+        run: gradle --no-daemon -PversionCode=${{ github.run_number }} assembleTvRelease assembleMobileRelease
 
-      - name: Rename APK and write version
+      - name: Rename APKs and write version
         run: |
-          cp app/build/outputs/apk/release/app-release.apk gemovie-tv.apk
+          SUFFIX=$([ "$TO_TV" = "true" ] && echo "" || echo "-test")
+          cp app/build/outputs/apk/tv/release/app-tv-release.apk "gemovie-tv$SUFFIX.apk"
+          cp app/build/outputs/apk/mobile/release/app-mobile-release.apk "gemovie-mobile$SUFFIX.apk"
           echo "${{ github.run_number }}" > version.txt
 
-      - name: Upload APK (Actions tab)
+      - name: Upload APKs (Actions tab)
         uses: actions/upload-artifact@v4
         with:
-          name: gemovie-tv-${{ github.run_number }}
-          path: gemovie-tv.apk
+          name: android-${{ github.run_number }}
+          path: gemovie-*.apk
 
-      # Test channel: .../releases/download/test/gemovie-tv-test.apk
-      - name: Publish TEST build
+      # Test channel: .../releases/download/test/gemovie-tv-test.apk (and gemovie-mobile-test.apk)
+      - name: Publish TEST builds
         if: env.TO_TV != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp gemovie-tv.apk gemovie-tv-test.apk
           gh release delete test --yes --cleanup-tag || true
-          gh release create test gemovie-tv-test.apk version.txt --prerelease --target "$GITHUB_SHA" \
-            --title "TEST build ${{ github.run_number }} (not on the TV)" \
-            --notes "Built from ${GITHUB_SHA::7}. For testing in BlueStacks. The TV ignores this."
+          gh release create test gemovie-tv-test.apk gemovie-mobile-test.apk version.txt --prerelease --target "$GITHUB_SHA" \
+            --title "TEST build ${{ github.run_number }}" \
+            --notes "Built from ${GITHUB_SHA::7}. For testing (BlueStacks, phone). The iPhone file is added when its build finishes."
 
-      # TV channel: .../releases/download/latest/gemovie-tv.apk (+ version.txt for the updater)
-      - name: Publish to TV
+      # Release channel: .../releases/download/latest/gemovie-tv.apk (+ gemovie-mobile.apk, version.txt)
+      - name: Publish release
         if: env.TO_TV == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest gemovie-tv.apk version.txt --target "$GITHUB_SHA" \
+          gh release create latest gemovie-tv.apk gemovie-mobile.apk version.txt --target "$GITHUB_SHA" \
             --title "MyMovie (build ${{ github.run_number }})" \
-            --notes "Built from ${GITHUB_SHA::7}. The app on the TV offers this update by itself."
+            --notes "Built from ${GITHUB_SHA::7}. The Android apps offer this update by themselves. iPhone: gemovie-ios.ipa (added when its build finishes)."
+
+  # iPhone / iPad. Runs after the Android release, so a failure here never holds up the TV.
+  ios:
+    needs: android
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate the Xcode project
+        working-directory: ios
+        run: brew install xcodegen && xcodegen generate
+
+      - name: Build (unsigned)
+        working-directory: ios
+        run: |
+          xcodebuild -project GeMovie.xcodeproj -target GeMovie -configuration Release -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} build | tail -40
+          test -d build/Release-iphoneos/GeMovie.app
+
+      - name: Package IPA
+        working-directory: ios
+        run: |
+          SUFFIX=$([ "$TO_TV" = "true" ] && echo "" || echo "-test")
+          mkdir -p Payload
+          cp -R build/Release-iphoneos/GeMovie.app Payload/
+          zip -qry "../gemovie-ios$SUFFIX.ipa" Payload
+
+      - name: Upload IPA (Actions tab)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-${{ github.run_number }}
+          path: gemovie-ios*.ipa
+
+      - name: Add IPA to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$([ "$TO_TV" = "true" ] && echo "latest" || echo "test")
+          gh release upload "$TAG" gemovie-ios*.ipa --clobber

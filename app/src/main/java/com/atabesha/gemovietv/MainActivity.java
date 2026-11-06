@@ -39,6 +39,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Full-screen WebView wrapper for ge.movie, driven by the TV remote.
@@ -71,6 +73,15 @@ public class MainActivity extends Activity {
     };
     // --------------------------------------------------------------------
 
+    /** true = phone/tablet build (touch), false = TV build (remote). Set per build in app/build.gradle. */
+    static final boolean TOUCH = "touch".equals(BuildConfig.UI_MODE);
+
+    /**
+     * Background downloads (TMDB texts, translations, trailer search) share two threads, so
+     * scrolling quickly through many titles can't start dozens of large downloads at once.
+     */
+    private static final ExecutorService NET = Executors.newFixedThreadPool(2);
+
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final Set<String> extraAllowedHosts = new HashSet<>();
     private final Updater updater = new Updater(this);
@@ -85,27 +96,56 @@ public class MainActivity extends Activity {
     private volatile boolean playing;
     /** True while the arrows move over the player's own controls in full screen. */
     private volatile boolean fsControls;
+    /** Phone/tablet: a movie or trailer is open (screen turned sideways, bars hidden). */
+    private boolean videoOpen;
     private long lastBackPress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        if (!TOUCH) getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
-        web = new WebView(this);
-        root.addView(web, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(root);
 
         navScript = readAsset("tvnav.js")
-                .replace("__VIEWPORT_WIDTH__", String.valueOf(VIEWPORT_WIDTH));
-        setupWebView();
+                .replace("__VIEWPORT_WIDTH__", String.valueOf(TOUCH ? 0 : VIEWPORT_WIDTH))
+                .replace("__MODE__", BuildConfig.UI_MODE);
+        createWebView();
 
         loadTvUi();
         web.requestFocus();
         showSplash();
+    }
+
+    private void createWebView() {
+        web = new WebView(this);
+        root.addView(web, 0, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        setupWebView();
+    }
+
+    /**
+     * The page's engine crashed, or Android stopped it to free memory (it can happen after
+     * hours of video on a TV with little RAM). Start a fresh page instead of closing the app.
+     */
+    private void rebuildWebView() {
+        if (customView != null) {
+            root.removeView(customView);
+            customView = null;
+            customViewCallback = null;
+        }
+        root.removeView(web);
+        web.destroy();
+        editing = false;
+        playing = false;
+        fsControls = false;
+        setVideoMode(false);
+        updateKeepScreenOn();
+        createWebView();
+        loadTvUi();
+        web.requestFocus();
     }
 
     // ------------------------------------------------------------ start-up animation
@@ -126,6 +166,7 @@ public class MainActivity extends Activity {
         video.setVideoURI(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.splash));
         video.setOnCompletionListener(mp -> hideSplash());
         video.setOnErrorListener((mp, what, extra) -> { hideSplash(); return true; });
+        if (TOUCH) splash.setOnClickListener(v -> hideSplash());      // a tap skips it
         video.start();
         ui.postDelayed(this::hideSplash, 8000);   // safety net if the video never ends
     }
@@ -182,7 +223,8 @@ public class MainActivity extends Activity {
     private static String buildUserAgent(String ua) {
         // Hide that this is an embedded WebView ("; wv"), which some sites block.
         ua = ua.replace("; wv", "");
-        if (DESKTOP_MODE) {
+        // Phones keep their own (mobile) identity, so the video player shows touch controls.
+        if (DESKTOP_MODE && !TOUCH) {
             ua = ua.replaceFirst("\\(Linux; Android[^)]*\\)", "(X11; Linux x86_64)")
                     .replaceFirst(" Version/[0-9.]+", "")
                     .replace(" Mobile Safari", " Safari");
@@ -209,6 +251,9 @@ public class MainActivity extends Activity {
             if (down && e.getRepeatCount() == 0) handleBack();
             return true;
         }
+
+        // Phones and tablets: everything else is typing, volume etc. as usual.
+        if (TOUCH) return super.dispatchKeyEvent(e);
 
         String cmd = commandFor(code);
         if (cmd == null) {
@@ -347,7 +392,29 @@ public class MainActivity extends Activity {
         if (customViewCallback != null) customViewCallback.onCustomViewHidden();
         customViewCallback = null;
         updateKeepScreenOn();
+        if (TOUCH) hideSystemBars(videoOpen);
         web.requestFocus();
+    }
+
+    /** Phone/tablet: a movie turns the screen sideways and hides the status/navigation bars. */
+    private void setVideoMode(boolean on) {
+        if (!TOUCH) return;
+        videoOpen = on;
+        setRequestedOrientation(on ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+        hideSystemBars(on);
+    }
+
+    private void hideSystemBars(boolean hide) {
+        androidx.core.view.WindowInsetsControllerCompat c = androidx.core.view.WindowCompat
+                .getInsetsController(getWindow(), getWindow().getDecorView());
+        if (hide) {
+            c.setSystemBarsBehavior(androidx.core.view.WindowInsetsControllerCompat
+                    .BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            c.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars());
+        } else {
+            c.show(androidx.core.view.WindowInsetsCompat.Type.systemBars());
+        }
     }
 
     private void updateKeepScreenOn() {
@@ -371,6 +438,7 @@ public class MainActivity extends Activity {
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             web.setVisibility(View.GONE);
             updateKeepScreenOn();
+            if (TOUCH) hideSystemBars(true);
         }
 
         @Override
@@ -435,6 +503,13 @@ public class MainActivity extends Activity {
                     + " onclick='TVApp.retry()'>Try again</button></body></html>";
             view.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
         }
+
+        @Override
+        public boolean onRenderProcessGone(WebView view, android.webkit.RenderProcessGoneDetail detail) {
+            // Without this Android closes the whole app when the page's engine dies.
+            if (view == web) ui.post(MainActivity.this::rebuildWebView);
+            return true;
+        }
     }
 
     private boolean isAllowedHost(String host) {
@@ -484,7 +559,7 @@ public class MainActivity extends Activity {
          */
         @JavascriptInterface
         public void localize(String key, String kind, String tmdbId, String lang, String geoPlot, String geoFacts) {
-            new Thread(() -> {
+            NET.execute(() -> {
                 String title = "", plot = "";
                 if (tmdbId != null && !tmdbId.isEmpty()) {
                     String[] tp = tmdbTexts("tv".equals(kind) ? "tv" : "movie", tmdbId, lang);
@@ -503,18 +578,24 @@ public class MainActivity extends Activity {
                 }
                 String js = "window.__tvui&&__tvui.onLocal&&__tvui.onLocal(" + org.json.JSONObject.quote(key) + "," + o + ")";
                 ui.post(() -> js(js, null));
-            }, "localize").start();
+            });
         }
 
         /** Finds a trailer on YouTube (the first search result) and tells the page. */
         @JavascriptInterface
         public void findTrailer(String query, String key) {
-            new Thread(() -> {
+            NET.execute(() -> {
                 String id = youtubeSearch(query);
                 if (id == null) return;
                 ui.post(() -> js("window.__tvui&&__tvui.onTrailer&&__tvui.onTrailer("
                         + org.json.JSONObject.quote(key) + "," + org.json.JSONObject.quote(id) + ")", null));
-            }, "trailer-search").start();
+            });
+        }
+
+        /** Phone/tablet: the page opened (true) or closed (false) a movie or trailer. */
+        @JavascriptInterface
+        public void setLandscape(boolean on) {
+            ui.post(() -> setVideoMode(on));
         }
 
         @JavascriptInterface
@@ -674,7 +755,11 @@ public class MainActivity extends Activity {
         String html = readAsset("tvui.html")
                 .replace("__LOGO__", "data:image/png;base64," + readAssetBase64("logo.png"))
                 .replace("__AV_PARENTS__", "data:image/jpeg;base64," + readAssetBase64("av_parents.jpg"))
-                .replace("__AV_SON__", "data:image/jpeg;base64," + readAssetBase64("av_son.jpg"));
+                .replace("__AV_SON__", "data:image/jpeg;base64," + readAssetBase64("av_son.jpg"))
+                .replace("__MODE__", BuildConfig.UI_MODE)
+                .replace("__VIEWPORT__", TOUCH
+                        ? "width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+                        : "width=" + VIEWPORT_WIDTH);
         web.loadDataWithBaseURL(UI_URL, html, "text/html", "utf-8", UI_URL);
     }
 
@@ -726,6 +811,8 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         web.onPause();
+        // Save sign-ins to disk now: if Android later closes the app, they'd otherwise be lost.
+        CookieManager.getInstance().flush();
     }
 
     @Override

@@ -10,11 +10,37 @@ android {
     compileSdk 34
 
     defaultConfig {
-        applicationId 'com.atabesha.gemovietv'
         minSdk 24
         targetSdk 34
         versionCode buildNumber
         versionName "1.0.${buildNumber}"
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    // Two apps from the same code:
+    //   tv     - Android TV, driven by the remote (the original app, same id so updates install over it)
+    //   mobile - Android phones and tablets, driven by touch (its own id, can sit next to the TV app)
+    flavorDimensions 'device'
+    productFlavors {
+        tv {
+            dimension 'device'
+            applicationId 'com.atabesha.gemovietv'
+            buildConfigField 'String', 'UI_MODE', '"tv"'
+            buildConfigField 'String', 'APK_NAME', '"gemovie-tv"'
+            manifestPlaceholders = [orientation: 'landscape', softInput: 'adjustUnspecified',
+                                    appTheme   : '@android:style/Theme.Black.NoTitleBar.Fullscreen']
+        }
+        mobile {
+            dimension 'device'
+            applicationId 'com.atabesha.gemovie.mobile'
+            buildConfigField 'String', 'UI_MODE', '"touch"'
+            buildConfigField 'String', 'APK_NAME', '"gemovie-mobile"'
+            manifestPlaceholders = [orientation: 'unspecified', softInput: 'adjustResize',
+                                    appTheme   : '@android:style/Theme.Black.NoTitleBar']
+        }
     }
 
     // A fixed key, so a new APK installs over the old one (keeping sign-ins).

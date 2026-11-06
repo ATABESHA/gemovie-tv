@@ -1,0 +1,55 @@
+# iPhone / iPad app. The Xcode project is generated from this file with XcodeGen
+# (the GitHub build does it: `brew install xcodegen && xcodegen`).
+# The screens (tvui.html) and the player script (tvnav.js) are shared with the
+# Android apps: they are taken straight from app/src/main/assets.
+name: GeMovie
+options:
+  bundleIdPrefix: com.atabesha
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    GENERATE_INFOPLIST_FILE: NO
+targets:
+  GeMovie:
+    type: application
+    platform: iOS
+    sources:
+      - path: GeMovie
+      - path: ../app/src/main/assets
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.atabesha.gemovie.ios
+        PRODUCT_NAME: GeMovie
+        INFOPLIST_FILE: GeMovie/Info.plist
+    info:
+      path: GeMovie/Info.plist
+      properties:
+        CFBundleDisplayName: MyMovie
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen:
+          UIColorName: LaunchBg
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UIRequiresFullScreen: true
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UIViewControllerBasedStatusBarAppearance: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true

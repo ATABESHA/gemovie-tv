@@ -21,9 +21,10 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:screenOrientation="landscape"
+            android:screenOrientation="${orientation}"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
-            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:theme="${appTheme}"
+            android:windowSoftInputMode="${softInput}"
             android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

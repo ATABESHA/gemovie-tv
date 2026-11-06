@@ -2,7 +2,7 @@
 <html lang="ka">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=1280">
+<meta name="viewport" content="__VIEWPORT__">
 <title>MyMovie</title>
 <style>
 :root{--red:#e50914;--bg:#0b0c10;--panel:#16171d;--dim:rgba(255,255,255,.62)}
@@ -19,6 +19,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 #top .logo img{height:40px;width:auto;border-radius:8px;display:block}
 #top .logo span{font-size:18px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
 #top .logo span i{font-style:normal;color:#c8afff}
+#top .tabs{display:flex;align-items:center;gap:10px}
 #top .tab{font-size:17px;padding:9px 13px;white-space:nowrap;border-radius:24px;color:var(--dim)}
 #top .tab.on{color:#fff;background:rgba(255,255,255,.12)}
 #q{margin-left:auto;width:200px;min-width:120px;height:46px;border-radius:24px;border:0;padding:0 22px;
@@ -158,6 +159,86 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 #trailer{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#000;z-index:35}
 #loading{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-size:20px;color:var(--dim);z-index:25;display:none}
 #loading.on{display:block}
+#backbtn{display:none}
+
+/* ================= phones and tablets (touch): html.touch ================= */
+html.touch{--hdr:104px}
+html.touch body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html.touch #top{height:auto;flex-wrap:wrap;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;
+  padding-left:calc(env(safe-area-inset-left) + 12px);padding-right:calc(env(safe-area-inset-right) + 12px);background:var(--bg)}
+html.touch #top .logo{margin-right:0;padding:0}
+html.touch #top .logo img{height:34px}
+html.touch #q{order:2;flex:1 1 80px;width:auto;min-width:0;height:40px;font-size:16px;padding:0 16px}
+html.touch #go{display:none}
+html.touch #top .round{order:3;width:40px;height:40px;flex-basis:40px;font-size:21px}
+html.touch #me .av{width:40px;height:40px;font-size:22px}
+html.touch #lang svg{width:26px;height:17px}
+html.touch #top .tabs{order:10;width:100%;overflow-x:auto;gap:6px;scrollbar-width:none}
+html.touch #top .tabs::-webkit-scrollbar{display:none}
+html.touch #top .tab{font-size:15px;padding:7px 13px}
+html.touch #pv{display:none}
+html.touch .scroller,html.touch .screen.full .scroller{top:var(--hdr);overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  padding-bottom:calc(env(safe-area-inset-bottom) + 16px);overscroll-behavior:contain}
+html.touch .line{padding-left:calc(env(safe-area-inset-left) + 14px);padding-right:calc(env(safe-area-inset-right) + 14px)}
+html.touch .row{padding:0}
+html.touch .row h3{margin-top:10px;padding:0 calc(env(safe-area-inset-right) + 14px) 0 calc(env(safe-area-inset-left) + 14px)}
+html.touch .track{transform:none!important;transition:none;overflow-x:auto;scrollbar-width:none;gap:10px;
+  padding:10px calc(env(safe-area-inset-right) + 14px) 8px calc(env(safe-area-inset-left) + 14px);scroll-padding:0 14px}
+html.touch .track::-webkit-scrollbar{display:none}
+html.touch .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:14px 10px}
+html.touch .grid .card{width:auto}
+html.touch .grid .card .img{width:100%;height:auto;aspect-ratio:2/3}
+html.touch .bar{flex-wrap:wrap}
+html.touch .bar.filters{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;padding-top:10px}
+html.touch .bar.filters::-webkit-scrollbar{display:none}
+html.touch .btn{font-size:15px;padding:9px 16px}
+html.touch .note{white-space:nowrap}
+html.touch .msg{padding:28px 16px;font-size:17px}
+html.touch .card:active .img{transform:scale(.96)}
+@media (min-width:700px){
+  html.touch .card{flex-basis:140px;width:140px}
+  html.touch .card .img{width:140px;height:210px}
+  html.touch .card .t{font-size:13px}
+  html.touch .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+  html.touch .grid .card{width:auto}
+}
+/* details: picture on top, text below (phones; tablets in portrait) */
+html.touch #det{overflow-y:auto;-webkit-overflow-scrolling:touch}
+@media (max-width:899px),(orientation:portrait){
+  html.touch #det .bg{width:100%;height:56vh;background-position:center 20%}
+  html.touch #det .fade{inset:auto;left:0;right:0;top:0;height:56vh;
+    background:linear-gradient(0deg,var(--bg) 0,rgba(11,12,16,.35) 55%,rgba(11,12,16,.15) 100%)}
+  html.touch #det .txt{position:relative;left:auto;top:auto;width:auto;
+    padding:44vh calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 28px) calc(env(safe-area-inset-left) + 16px)}
+  html.touch #det h1{font-size:28px}
+  html.touch #det .en{font-size:16px}
+  html.touch #det .facts{font-size:15px;line-height:1.6}
+  html.touch #det .plot{font-size:16px;-webkit-line-clamp:unset;display:block}
+  html.touch #det .bar{padding-top:20px}
+  html.touch #det .btn{font-size:16px;padding:11px 20px}
+}
+/* lists (filters, language, settings) */
+html.touch #ov .box,html.touch #ov.drop .box{left:50%;right:auto;top:50%;transform:translate(-50%,-50%);
+  width:min(440px,calc(100vw - 32px));max-height:80vh}
+html.touch #ov .items{max-height:calc(80vh - 50px);overflow-y:auto}
+/* profiles, editor, PIN */
+html.touch .modal{overflow-y:auto;padding-bottom:calc(env(safe-area-inset-bottom) + 24px)}
+html.touch .modal h2{font-size:28px;padding-top:calc(env(safe-area-inset-top) + 48px)!important}
+html.touch .prow{gap:20px;padding:0 16px;margin-top:30px}
+html.touch .ptile{width:110px}
+html.touch .ptile .av{width:100px;height:100px;font-size:54px}
+html.touch .peditor{width:auto;max-width:760px;margin:20px auto 0;padding:0 16px}
+html.touch .peditor .prow{padding:0;flex-wrap:wrap}
+html.touch .avpick{width:58px;height:58px;font-size:32px}
+html.touch .pad{grid-template-columns:repeat(3,84px);margin-top:28px}
+html.touch .pad .k:active{background:#fff;color:#000}
+/* back button (phones have no remote; iPhone has no Back key) */
+html.touch #backbtn.on{display:flex;align-items:center;justify-content:center;position:fixed;z-index:50;
+  left:calc(env(safe-area-inset-left) + 10px);top:calc(env(safe-area-inset-top) + 10px);width:44px;height:44px;
+  border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:30px;line-height:1;padding-bottom:4px;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+/* during a movie: top-right, clear of the player's audio menu (top-left) */
+html.touch.playing #backbtn.on{opacity:.7;left:auto;right:calc(env(safe-area-inset-right) + 12px)}
 </style>
 </head>
 <body>
@@ -170,12 +251,14 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 
   <div id="top">
     <div class="logo f" data-act="home"><img src="__LOGO__" alt="MyMovie"></div>
-    <div class="tab f" data-act="home" id="t-home" data-t="home"></div>
-    <div class="tab f" data-act="movie" id="t-movie" data-t="movies"></div>
-    <div class="tab f" data-act="serial" id="t-serial" data-t="series"></div>
-    <div class="tab f" data-act="cw" id="t-cw" data-t="cw"></div>
-    <div class="tab f" data-act="list" id="t-list" data-t="mylist"></div>
-    <input id="q" class="f" type="text" autocomplete="off">
+    <div class="tabs">
+      <div class="tab f" data-act="home" id="t-home" data-t="home"></div>
+      <div class="tab f" data-act="movie" id="t-movie" data-t="movies"></div>
+      <div class="tab f" data-act="serial" id="t-serial" data-t="series"></div>
+      <div class="tab f" data-act="cw" id="t-cw" data-t="cw"></div>
+      <div class="tab f" data-act="list" id="t-list" data-t="mylist"></div>
+    </div>
+    <input id="q" class="f" type="text" autocomplete="off" enterkeyhint="search">
     <div id="go" class="f" data-act="search" data-t="searchBtn"></div>
     <div id="lang" class="f round" data-act="langmenu"></div>
     <div id="set" class="f round" data-act="settings">⚙</div>
@@ -187,11 +270,26 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
 <div id="ov"><div class="box"><h4></h4><div class="items"></div></div></div>
 <div id="pf" class="modal"></div>
 <div id="loading"></div>
+<div id="backbtn" role="button" aria-label="Back">‹</div>
 
 <script>
 (function () {
   'use strict';
   var App = window.TVApp;
+  // 'tv' = remote control (Android TV); 'touch' = phone or tablet. Set by the app.
+  var TOUCH = '__MODE__' === 'touch';
+  if (TOUCH) document.documentElement.classList.add('touch');
+  // Poster size: the smallest TMDB picture that is still sharp on this screen
+  // (a TV at 1080p needs ~185 px wide, a phone ~350 px). Smaller pictures load
+  // and decode faster and keep the page's memory low.
+  var POSTER = (function () {
+    var dpr = window.devicePixelRatio || 1;
+    // TV: the page is laid out 1280 wide and stretched over the whole screen.
+    var scr = window.screen;      // (this script has its own variable called "screen")
+    var scale = TOUCH ? dpr : Math.max(scr.width, scr.height) * dpr / 1280;
+    var need = (TOUCH && innerWidth >= 700 ? 140 : 105) * 1.08 * scale;
+    return need <= 154 ? 'w154' : need <= 185 ? 'w185' : need <= 342 ? 'w342' : 'w500';
+  })();
   function $(s, r) { return (r || document).querySelector(s); }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -275,7 +373,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     }).then(function (h) { return new DOMParser().parseFromString(h, 'text/html'); });
     docCache.set(url, p);
     p.catch(function () { docCache.delete(url); });
-    if (docCache.size > 40) docCache.delete(docCache.keys().next().value);
+    // Each entry is a whole parsed page: keep only a few, they stay in memory during movies.
+    if (docCache.size > 12) docCache.delete(docCache.keys().next().value);
     return p;
   }
 
@@ -293,7 +392,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     return {
       url: url, serial: /\/serial\//.test(url),
       title: p ? p.textContent.trim() : both[0], en: sp ? sp.textContent.trim() : (both[1] || ''),
-      poster: tmdb(poster, 'w342'), bg: tmdb(img && img.getAttribute('bg') || '', 'w1280'),
+      poster: tmdb(poster, POSTER), bg: tmdb(img && img.getAttribute('bg') || '', 'w1280'),
       rating: txt(c, '.imdb span'), year: txt(c, '.gm-year-value'),
       eps: eps && !/S00\s*\/\s*E00/.test(eps.textContent) ? eps.textContent.trim() : '',   // movies carry a dummy S00 / E00
       langs: $$('.gm-language-text', c).map(function (e) { return e.textContent.trim().toUpperCase(); })
@@ -676,7 +775,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   }
 
   // ---------- browse: Movies / Series / search results, with filters
-  var COLS = 10;
+  var COLS = TOUCH ? 1e9 : 10;     // touch: one grid that wraps to the screen width
   var B = { type: 'movie', params: {}, page: 0, pages: 1, loading: false, filters: null, q: '' };
 
   function openBrowse(type, q) {
@@ -869,12 +968,14 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     f.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3';
     trailer = f;
     document.body.appendChild(f);
+    videoMode(true);
   }
   function closeTrailer() {
     var f = trailer;
     trailer = null;
     try { f.src = 'about:blank'; } catch (e) {}
     f.remove();                       // nothing of it keeps running
+    videoMode(false);
     focus($('[data-act=trailer]', det) || $('[data-act=play]', det));
   }
   function trailerKey(cmd) {
@@ -919,6 +1020,13 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     app.classList.add('off');
     document.body.appendChild(f);
     playerWin = f.contentWindow;
+    videoMode(true);
+  }
+  // Phones and tablets turn sideways for the movie and back afterwards.
+  function videoMode(on) {
+    document.documentElement.classList.toggle('playing', on);
+    if (TOUCH) try { App && App.setLandscape && App.setLandscape(on); } catch (e) {}
+    syncBack();
   }
   function closePlayer() {
     post({ pstop: 1 });                     // the player reports its last position first
@@ -935,6 +1043,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
     try { App && App.setFsControls && App.setFsControls(false); } catch (e) {}
     det.classList.add('on');
     focus($('[data-act=play]', det));
+    videoMode(false);
   }
   window.addEventListener('message', function (ev) {
     var d = ev.data;
@@ -1009,7 +1118,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   function focus(el) {
     if (cur) cur.classList.remove('fx');
     cur = el;
-    if (!el) return;
+    if (!el || TOUCH) return;          // touch: no highlight, the finger scrolls
     el.classList.add('fx');
     if (el.id === 'q' || el.closest('#top') || el.closest('#det')) return;
     // Row: slide the track so the focused card stays near the left edge.
@@ -1103,7 +1212,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   // after the start-up animation). Then the remote's arrows and OK would type into the
   // search field instead of moving the menu. Only OK on the field may give it the focus.
   var qWanted = false;
-  $('#q').addEventListener('focus', function () { if (!qWanted) $('#q').blur(); });
+  $('#q').addEventListener('focus', function () { if (!qWanted && !TOUCH) $('#q').blur(); });
   $('#q').addEventListener('blur', function () { qWanted = false; });
 
   // ============================================== profiles
@@ -1297,7 +1406,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
         '<span class="btn f" data-e="cancel">' + esc(T('cancel')) + '</span></div></div>';
       $$('.avwrap', pf).forEach(function (w) { w.classList.add('av-hold'); });
       var inp = $('#pname');
-      inp.addEventListener('focus', function () { if (!nameWanted) inp.blur(); });
+      inp.addEventListener('focus', function () { if (!nameWanted && !TOUCH) inp.blur(); });
       inp.addEventListener('blur', function () { nameWanted = false; });
       inp.addEventListener('input', function () { E.name = inp.value; });
       inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); draw('[data-av]'); } });
@@ -1405,6 +1514,52 @@ html,body{margin:0;height:100%;background:var(--bg);color:#fff;overflow:hidden;
   UI.onLocal = localDone;
   window.__tvui = UI;
   if (!window.__tv) window.__tv = { key: UI.key, back: UI.back, pageReady: function () {} };
+
+  // ============================================== touch (phones, tablets)
+  // The same screens as on the TV; a tap does what OK does on the highlighted item.
+  var backBtn = $('#backbtn');
+  function canGoBack() {
+    return !!(playing || trailer || det.classList.contains('on') || (M && (P || M.kind !== 'picker')));
+  }
+  function syncBack() { if (TOUCH) backBtn.classList.toggle('on', canGoBack()); }
+  function sizeHeader() { document.documentElement.style.setProperty('--hdr', top.offsetHeight + 'px'); }
+  if (TOUCH) {
+    backBtn.addEventListener('click', function () { UI.back(); syncBack(); });
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (t === backBtn) return;
+      if (OV) {                                   // a list: tap a line, or outside to close
+        var row = t.closest('#ov .it');
+        if (row) {
+          var x = OV.list[$$('.it', ov).indexOf(row)];
+          if (x && !x.head) { closeOverlay(); x.run(); }
+        } else if (!t.closest('#ov .box')) closeOverlay();
+        syncBack();
+        return;
+      }
+      var el = t.closest('.f');
+      if (!el || el.tagName === 'INPUT') return;  // text boxes: the phone's own keyboard
+      e.preventDefault();
+      var ae = document.activeElement;
+      if (ae && ae.tagName === 'INPUT' && ae !== el) ae.blur();
+      focus(el);
+      if (M) M.ok(el); else activate(el);
+      syncBack();
+    });
+    // Near the end of a row or of a list: load more (the TV does this when you get there).
+    document.addEventListener('scroll', function (e) {
+      var s = e.target;
+      if (!s || !s.classList) return;
+      if (s.classList.contains('track')) {
+        if (s.scrollLeft + s.clientWidth > s.scrollWidth - 600 && s.parentElement.__row) rowMore(s.parentElement.__row);
+      } else if (s.classList.contains('scroller') && screen === 'browse') {
+        if (s.scrollTop + s.clientHeight > s.scrollHeight - 900) loadPage(false);
+      }
+    }, true);
+    addEventListener('resize', sizeHeader);
+    sizeHeader();
+    setInterval(syncBack, 500);                   // also catches screens opened another way
+  }
 
   // ============================================================== start
   // Who's watching? asked at every start when there are several profiles or a PIN.
