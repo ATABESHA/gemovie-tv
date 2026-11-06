@@ -1,0 +1,39 @@
+name: Build iPhone Safari script
+
+# Rebuilds web/mymovie.user.js (MyMovie for Safari through the Userscripts app) whenever
+# the shared screens or player script change, and commits it. The Userscripts app on the
+# iPhone picks the new version up by itself.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/src/main/assets/**'
+      - 'tools/userscript/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: userscript
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build
+        run: node tools/userscript/build.js && node --check web/mymovie.user.js
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/mymovie.user.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Rebuild iPhone Safari script"
+          git pull --rebase origin main
+          git push origin HEAD:main

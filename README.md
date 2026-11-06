@@ -32,7 +32,28 @@ Open the release page on the phone, download `gemovie-mobile.apk` and open it (a
 installing from the browser when asked). It installs next to the TV app and updates itself
 the same way.
 
-### iPhone / iPad
+### iPhone / iPad in Safari (no computer needed)
+MyMovie runs inside Safari with the free **Userscripts** app, which adds MyMovie's screens
+to ge.movie. (A web page of its own can't do it: ge.movie doesn't let other sites read it.)
+
+1. Install **Userscripts** (by Justin Wasack) from the App Store.
+2. Settings → Apps → Safari → Extensions → **Userscripts**: turn it on and allow it on
+   **All Websites** (or at least ge.movie and kinoflix.tv).
+3. In Safari open
+   `https://raw.githubusercontent.com/ATABESHA/gemovie-tv/main/web/mymovie.user.js`,
+   tap the **puzzle icon** (or **aA**) in the address bar → Userscripts → **Install**.
+4. Open **`https://ge.movie/tv-app`**: MyMovie appears. (If ge.movie first shows a
+   "checking your browser" page, wait for it, then open the address again.)
+5. Share → **Add to Home Screen** → turn **off** "Open as Web App" → Add. (Safari
+   extensions don't run in web-app mode; with it off, the icon opens MyMovie in Safari.)
+
+The Userscripts app updates the script by itself when a new version is on GitHub
+(`web/mymovie.user.js` is rebuilt automatically after every change to the screens).
+In Safari, Russian/English titles and trailers are not available (they need the app);
+everything else is the same as on the Android phone. Continue Watching and My List are kept
+in Safari on that device.
+
+### iPhone / iPad app (full features, installed from a PC)
 Apple only lets apps from the App Store install by themselves, so the iPhone app is installed
 from a computer:
 1. On the Windows PC install **Sideloadly** (sideloadly.io) and iTunes (from apple.com, not the
