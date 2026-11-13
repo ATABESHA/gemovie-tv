@@ -59,8 +59,11 @@ public class MainActivity extends Activity {
     static final String UI_URL = "https://ge.movie/tv-app";
     /** Main-page navigation is only allowed to these domains (and their subdomains). */
     static final String[] ALLOWED_DOMAINS = {"ge.movie"};
-    /** true = ask the site for its desktop layout (usually best on a TV). */
-    static final boolean DESKTOP_MODE = true;
+    /**
+     * true = tell sites this is a Linux PC. Off: Cloudflare's browser check compares that
+     * claim with what the engine itself reports (Android) and keeps failing when they differ.
+     */
+    static final boolean DESKTOP_MODE = false;
     /** Page width in CSS pixels the site is laid out at (0 = leave the site's own setting). */
     static final int VIEWPORT_WIDTH = 1280;
     /** Requests to these hosts are dropped (ads / popups). */
@@ -245,6 +248,8 @@ public class MainActivity extends Activity {
                     || code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE)) hideSplash();
             return true;
         }
+
+        if (cfWeb != null) return cfKey(e);
 
         // Esc = Back, so a PC keyboard (BlueStacks) works like the TV remote.
         if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE) {
@@ -628,6 +633,12 @@ public class MainActivity extends Activity {
             ui.post(() -> MainActivity.this.tap(fx, fy));
         }
 
+        /** The site answered with Cloudflare's browser check instead of a page. */
+        @JavascriptInterface
+        public void cfCheck() {
+            ui.post(MainActivity.this::showCfCheck);
+        }
+
         @JavascriptInterface
         public void retry() {
             ui.post(() -> {
@@ -748,6 +759,158 @@ public class MainActivity extends Activity {
         } finally {
             if (c != null) c.disconnect();
         }
+    }
+
+    // ------------------------------------------------- Cloudflare browser check
+
+    /*
+     * ge.movie sometimes asks Cloudflare to check the browser first. The app's interface
+     * only downloads pages in the background, where that check can't run, so the real
+     * site is opened here in a plain page the way any browser shows it. The check runs
+     * by itself; if it shows a "verify you are human" box, the arrows move a pointer and
+     * OK clicks. Once the site's own page appears, the browser has its pass (a cookie
+     * shared with the interface) and the interface reloads.
+     */
+    private WebView cfWeb;
+    private FrameLayout cfLayer;
+    private View cfPointer;
+    private android.widget.TextView cfInfo;
+    private float cfX, cfY;
+
+    private final Runnable cfPoll = new Runnable() {
+        @Override
+        public void run() {
+            if (cfWeb == null) return;
+            cfWeb.evaluateJavascript("(function(){var c=!!window._cf_chl_opt||/just a moment/i.test(document.title);"
+                    + "var real=!c&&!!document.querySelector('a[href*=\"/movie/\"],a[href*=\"/serial/\"]');"
+                    + "return real?'ok':c?'check':'wait'})()", r -> {
+                if (cfWeb == null) return;
+                if ("\"ok\"".equals(r)) { closeCfCheck(true); return; }
+                ui.postDelayed(this, 1000);
+            });
+        }
+    };
+
+    private long cfCancelledAt;
+
+    private void showCfCheck() {
+        // Just cancelled with Back: don't pop up again for every row that fails.
+        if (cfWeb != null || SystemClock.uptimeMillis() - cfCancelledAt < 30000) return;
+        int dp = (int) getResources().getDisplayMetrics().density;
+        cfLayer = new FrameLayout(this);
+        cfLayer.setBackgroundColor(Color.BLACK);
+        cfWeb = new WebView(this);
+        WebSettings s = cfWeb.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        // Same identity as the interface: the pass is only valid for the browser that got it.
+        s.setUserAgentString(web.getSettings().getUserAgentString());
+        CookieManager.getInstance().setAcceptThirdPartyCookies(cfWeb, true);
+        cfWeb.setWebViewClient(new WebViewClient());
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        lp.topMargin = 56 * dp;
+        cfLayer.addView(cfWeb, lp);
+
+        cfInfo = new android.widget.TextView(this);
+        cfInfo.setTextColor(Color.WHITE);
+        cfInfo.setTextSize(15);
+        cfInfo.setPadding(16 * dp, 8 * dp, 16 * dp, 8 * dp);
+        cfInfo.setBackgroundColor(0xFF1D4ED8);
+        String wv = "?";
+        try { wv = new Bridge().webViewVersion(); } catch (Exception ignored) { }
+        int major = 0;
+        try { major = Integer.parseInt(wv.split("\\.")[0]); } catch (Exception ignored) { }
+        String old = major > 0 && major < 110
+                ? "\n⚠ Android System WebView " + wv + " is old — update it in Google Play, the check may fail on it."
+                : "";
+        cfInfo.setText("ge.movie is checking the browser. Wait a few seconds. If a box appears, move the "
+                + "pointer onto it with the arrows and press OK.  Back = cancel.   (WebView " + wv + ")" + old);
+        cfLayer.addView(cfInfo, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        cfPointer = new View(this);
+        android.graphics.drawable.GradientDrawable ring = new android.graphics.drawable.GradientDrawable();
+        ring.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        ring.setColor(0x55FFFFFF);
+        ring.setStroke(3 * dp, 0xFFFFCC00);
+        cfPointer.setBackground(ring);
+        cfLayer.addView(cfPointer, new FrameLayout.LayoutParams(28 * dp, 28 * dp));
+
+        root.addView(cfLayer, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        cfLayer.post(() -> {
+            // Cloudflare's box usually sits on the left of the content column.
+            cfX = cfLayer.getWidth() * 0.32f;
+            cfY = cfLayer.getHeight() * 0.42f;
+            moveCfPointer(0, 0);
+        });
+        cfWeb.loadUrl(START_URL);
+        cfWeb.requestFocus();
+        ui.postDelayed(cfPoll, 1500);
+    }
+
+    private void moveCfPointer(float dx, float dy) {
+        if (cfLayer == null) return;
+        cfX = Math.max(0, Math.min(cfLayer.getWidth() - 1, cfX + dx));
+        cfY = Math.max(cfInfo.getHeight(), Math.min(cfLayer.getHeight() - 1, cfY + dy));
+        cfPointer.setTranslationX(cfX - cfPointer.getWidth() / 2f);
+        cfPointer.setTranslationY(cfY - cfPointer.getHeight() / 2f);
+    }
+
+    private boolean cfKey(KeyEvent e) {
+        if (e.getAction() != KeyEvent.ACTION_DOWN) return true;
+        float step = getResources().getDisplayMetrics().density * (e.getRepeatCount() > 3 ? 40 : 14);
+        switch (e.getKeyCode()) {
+            case KeyEvent.KEYCODE_DPAD_LEFT: moveCfPointer(-step, 0); break;
+            case KeyEvent.KEYCODE_DPAD_RIGHT: moveCfPointer(step, 0); break;
+            case KeyEvent.KEYCODE_DPAD_UP: moveCfPointer(0, -step); break;
+            case KeyEvent.KEYCODE_DPAD_DOWN: moveCfPointer(0, step); break;
+            case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER:
+                if (e.getRepeatCount() == 0) cfClick();
+                break;
+            case KeyEvent.KEYCODE_BACK: case KeyEvent.KEYCODE_ESCAPE:
+                if (e.getRepeatCount() == 0) closeCfCheck(false);
+                break;
+            default:
+                return super.dispatchKeyEvent(e);
+        }
+        return true;
+    }
+
+    /** OK = a touch where the pointer is (the person clicks the box themselves). */
+    private void cfClick() {
+        final WebView w = cfWeb;
+        final float x = cfX, y = cfY - ((FrameLayout.LayoutParams) w.getLayoutParams()).topMargin;
+        if (y < 0) return;
+        long t = SystemClock.uptimeMillis();
+        MotionEvent d = MotionEvent.obtain(t, t, MotionEvent.ACTION_DOWN, x, y, 0);
+        d.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+        w.dispatchTouchEvent(d);
+        d.recycle();
+        ui.postDelayed(() -> {
+            if (cfWeb != w) return;
+            MotionEvent u = MotionEvent.obtain(t, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, x, y, 0);
+            u.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+            w.dispatchTouchEvent(u);
+            u.recycle();
+        }, 80);
+    }
+
+    private void closeCfCheck(boolean passed) {
+        if (cfWeb == null) return;
+        ui.removeCallbacks(cfPoll);
+        root.removeView(cfLayer);
+        cfWeb.destroy();
+        cfWeb = null;
+        cfLayer = null;
+        CookieManager.getInstance().flush();
+        if (!passed) cfCancelledAt = SystemClock.uptimeMillis();
+        if (passed) {
+            toast("✓ ge.movie");
+            loadTvUi();
+        }
+        web.requestFocus();
     }
 
     private void loadTvUi() {

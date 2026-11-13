@@ -368,8 +368,16 @@ html.touch.playing #backbtn.on{opacity:.7;left:auto;right:calc(env(safe-area-ins
   function getDoc(url) {
     if (docCache.has(url)) return docCache.get(url);
     var p = fetch(url, { credentials: 'include' }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.text();
+      return r.text().then(function (h) {
+        // Cloudflare's "checking your browser" page instead of the real one: it can only
+        // run in a visible page, so the app opens the site for it (MainActivity.showCfCheck).
+        if (r.headers.get('cf-mitigated') === 'challenge' || /_cf_chl_opt|<title>\s*Just a moment/i.test(h)) {
+          try { if (window.TVApp && TVApp.cfCheck) TVApp.cfCheck(); } catch (e) {}
+          throw new Error('Cloudflare');
+        }
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return h;
+      });
     }).then(function (h) { return new DOMParser().parseFromString(h, 'text/html'); });
     docCache.set(url, p);
     p.catch(function () { docCache.delete(url); });
