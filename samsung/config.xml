@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- MyMovie for Samsung TVs. Tizen 3.0 = 2017 models (e.g. UE55MU6255); newer TVs run it too.
+     The version is filled in by tools/samsung/build.js. -->
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets"
+        id="https://github.com/ATABESHA/gemovie-tv" version="__VERSION__" viewmodes="maximized">
+  <name>MyMovie</name>
+  <description>gemovie.tv on the TV with the remote control</description>
+  <icon src="icon.png"/>
+  <content src="index.html"/>
+  <!-- The app reads the movie site, TMDB, Google Translate and YouTube, and shows the site's
+       video player: it may reach any https address. -->
+  <access origin="*" subdomains="true"/>
+  <tizen:application id="MyMovieTV1.MyMovie" package="MyMovieTV1" required_version="3.0"/>
+  <tizen:profile name="tv-samsung"/>
+  <tizen:privilege name="http://tizen.org/privilege/internet"/>
+  <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+  <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable"
+                 encryption="disable" install-location="auto" hwkey-event="enable"/>
+</widget>

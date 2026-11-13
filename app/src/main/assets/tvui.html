@@ -279,6 +279,9 @@ html.touch.playing #backbtn.on{opacity:.7;left:auto;right:calc(env(safe-area-ins
   // 'tv' = remote control (Android TV); 'touch' = phone or tablet. Set by the app.
   var TOUCH = '__MODE__' === 'touch';
   if (TOUCH) document.documentElement.classList.add('touch');
+  // The site's address in front of its page paths. Empty when this page itself runs under
+  // the site's address (Android, iPhone); the Samsung app runs from the TV and sets it.
+  var SITE = window.__SITE__ || '';
   // Poster size: the smallest TMDB picture that is still sharp on this screen
   // (a TV at 1080p needs ~185 px wide, a phone ~350 px). Smaller pictures load
   // and decode faster and keep the page's memory low.
@@ -374,7 +377,7 @@ html.touch.playing #backbtn.on{opacity:.7;left:auto;right:calc(env(safe-area-ins
   function getDoc(url) {
     url = sitePath(url);
     if (docCache.has(url)) return docCache.get(url);
-    var p = fetch(url, { credentials: 'include' }).then(function (r) {
+    var p = fetch(SITE + url, { credentials: 'include' }).then(function (r) {
       return r.text().then(function (h) {
         // Cloudflare's "checking your browser" page instead of the real one: it can only
         // run in a visible page, so the app opens the site for it (MainActivity.showCfCheck).
@@ -1226,7 +1229,7 @@ html.touch.playing #backbtn.on{opacity:.7;left:auto;right:calc(env(safe-area-ins
     else if (act === 'forget') { cwForget(detItem.url); $('.txt .bar', det).outerHTML = detButtons(detItem); focus($('[data-act=play]', det)); }
     else if (act === 'back') closeDetails();
     else if (act === 'retry' && el.__run) el.__run();
-    else if (act === 'site') location.href = location.origin + '/';
+    else if (act === 'site') location.href = (SITE || location.origin) + '/';
   }
 
   function doSearch() {
@@ -1542,6 +1545,10 @@ html.touch.playing #backbtn.on{opacity:.7;left:auto;right:calc(env(safe-area-ins
   };
   UI.onTrailer = trailerFound;
   UI.onLocal = localDone;
+  // For apps that drive the video player from outside it (Samsung: through the player's
+  // own message interface): the open player and where it should start, and its progress.
+  UI.player = function () { return playing ? { frame: playing, start: startMsg } : null; };
+  UI.progress = function (p) { if (playing) cwUpdate(playingItem, p); };
   window.__tvui = UI;
   if (!window.__tv) window.__tv = { key: UI.key, back: UI.back, pageReady: function () {} };
 

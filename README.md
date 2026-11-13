@@ -72,6 +72,12 @@ The app tells you when a newer build is on GitHub; installing it is the same ste
 The iPhone project is in `ios/` (Swift). The Mac at GitHub builds it; to build it yourself on
 a Mac: `brew install xcodegen`, then `cd ios && xcodegen` and open `GeMovie.xcodeproj`.
 
+## Samsung TVs
+
+A Tizen version for Samsung TVs (made for a 2017 UE55MU6255, works on newer ones) is in
+`samsung/`. It is built from the same screens and installed from a PC on the TV's network:
+see [samsung/README.md](samsung/README.md).
+
 ## gemovie.tv layout
 
 - **Two zones**: the left menu (მთავარი, ფილმები, სერიალები, მალე, ტელევიზია, მსახიობები)
