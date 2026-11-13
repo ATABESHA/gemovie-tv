@@ -1,6 +1,8 @@
-# MyMovie (TV app for ge.movie)
+# MyMovie (TV app for gemovie.tv)
 
-An Android TV app that opens **ge.movie** full screen and lets you use it with the
+> The site moved from ge.movie to gemovie.tv in November 2026. The Android app follows such a move by itself (it checks the old address for a permanent redirect) and keeps the profiles and lists saved under the old address.
+
+An Android TV app that opens **gemovie.tv** full screen and lets you use it with the
 TV remote, Netflix-style: no mouse pointer, a red highlight moves between items.
 
 Made for Sony Bravia 4K UR2 (Android TV 10), works on any Android TV / Google TV.
@@ -34,15 +36,15 @@ the same way.
 
 ### iPhone / iPad in Safari (no computer needed)
 MyMovie runs inside Safari with the free **Userscripts** app, which adds MyMovie's screens
-to ge.movie. (A web page of its own can't do it: ge.movie doesn't let other sites read it.)
+to gemovie.tv. (A web page of its own can't do it: gemovie.tv doesn't let other sites read it.)
 
 1. Install **Userscripts** (by Justin Wasack) from the App Store.
 2. Settings → Apps → Safari → Extensions → **Userscripts**: turn it on and allow it on
-   **All Websites** (or at least ge.movie and kinoflix.tv).
+   **All Websites** (or at least gemovie.tv and kinoflix.tv).
 3. In Safari open
    `https://raw.githubusercontent.com/ATABESHA/gemovie-tv/main/web/mymovie.user.js`,
    tap the **puzzle icon** (or **aA**) in the address bar → Userscripts → **Install**.
-4. Open **`https://ge.movie/tv-app`**: MyMovie appears. (If ge.movie first shows a
+4. Open **`https://gemovie.tv/tv-app`**: MyMovie appears. (If gemovie.tv first shows a
    "checking your browser" page, wait for it, then open the address again.)
 5. Share → **Add to Home Screen** → turn **off** "Open as Web App" → Add. (Safari
    extensions don't run in web-app mode; with it off, the icon opens MyMovie in Safari.)
@@ -70,7 +72,7 @@ The app tells you when a newer build is on GitHub; installing it is the same ste
 The iPhone project is in `ios/` (Swift). The Mac at GitHub builds it; to build it yourself on
 a Mac: `brew install xcodegen`, then `cd ios && xcodegen` and open `GeMovie.xcodeproj`.
 
-## ge.movie layout
+## gemovie.tv layout
 
 - **Two zones**: the left menu (მთავარი, ფილმები, სერიალები, მალე, ტელევიზია, მსახიობები)
   and the content on the right (search, rows of movies…). Up/Down stay in the zone you're in.

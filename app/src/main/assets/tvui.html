@@ -363,9 +363,16 @@ html.touch.playing #backbtn.on{opacity:.7;left:auto;right:calc(env(safe-area-ins
   var FACT_KEYS = { 'ჟანრი': 'genre', 'რეჟისორი': 'director', 'ქვეყანა': 'country', 'სტუდია': 'studio' };
 
   // ================================================================ data
-  // Everything comes from ge.movie's own pages (same site, so the app may read them).
+  // Everything comes from the site's own pages (same site, so the app may read them).
   var docCache = new Map();
+  // A site address as a path on the current site ("https://ge.movie/movie/1" -> "/movie/1").
+  // The site has moved before: links saved under an old address must still open here.
+  function sitePath(u) {
+    var m = /^(?:https?:)?\/\/[^\/?#]+([\/?#].*)?$/i.exec(u || '');
+    return m ? (m[1] || '/') : u;
+  }
   function getDoc(url) {
+    url = sitePath(url);
     if (docCache.has(url)) return docCache.get(url);
     var p = fetch(url, { credentials: 'include' }).then(function (r) {
       return r.text().then(function (h) {
@@ -378,6 +385,10 @@ html.touch.playing #backbtn.on{opacity:.7;left:auto;right:calc(env(safe-area-ins
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return h;
       });
+    }, function (e) {
+      // No answer at all (or a redirect to another address): maybe the site moved again.
+      try { if (window.TVApp && TVApp.recheckSite) TVApp.recheckSite(); } catch (x) {}
+      throw e;
     }).then(function (h) { return new DOMParser().parseFromString(h, 'text/html'); });
     docCache.set(url, p);
     p.catch(function () { docCache.delete(url); });
@@ -389,7 +400,7 @@ html.touch.playing #backbtn.on{opacity:.7;left:auto;right:calc(env(safe-area-ins
   function parseCard(c) {
     var a = c.querySelector('a[href*="/movie/"],a[href*="/serial/"]');
     if (!a) return null;
-    var url = a.getAttribute('href');
+    var url = sitePath(a.getAttribute('href'));
     var img = c.querySelector('img[data-src]') || c.querySelector('img');
     var poster = img ? (img.getAttribute('data-src') || img.getAttribute('src') || '') : '';
     if (/thumb\.svg|poster\.svg/.test(poster)) poster = '';
@@ -597,7 +608,18 @@ html.touch.playing #backbtn.on{opacity:.7;left:auto;right:calc(env(safe-area-ins
   // ================================================= continue watching
   // Kept on this TV only (the app's own storage), newest first.
   function CWK() { return 'tv_continue_' + (P ? P.id : 'x'); }      // per profile
-  function cwAll() { try { return JSON.parse(localStorage.getItem(CWK()) || '[]'); } catch (e) { return []; } }
+  function cwAll() { try { return savedPaths(JSON.parse(localStorage.getItem(CWK()) || '[]')); } catch (e) { return []; } }
+  // Entries saved before the move carry full addresses: compare them as paths
+  // (the same title saved under both addresses is kept once, the newest).
+  function savedPaths(list) {
+    var seen = {};
+    return list.filter(function (x) {
+      x.url = sitePath(x.url);
+      if (x.item) x.item.url = sitePath(x.item.url);
+      if (seen[x.url]) return false;
+      return (seen[x.url] = true);
+    });
+  }
   function cwSave(list) { try { localStorage.setItem(CWK(), JSON.stringify(list.slice(0, 40))); } catch (e) {} }
   function cwGet(url) { return cwAll().filter(function (x) { return x.url === url; })[0] || null; }
   function cwForget(url) { cwSave(cwAll().filter(function (x) { return x.url !== url; })); }
@@ -641,7 +663,7 @@ html.touch.playing #backbtn.on{opacity:.7;left:auto;right:calc(env(safe-area-ins
 
   // ========================================================= my list
   function MLK() { return 'tv_mylist_' + (P ? P.id : 'x'); }        // per profile
-  function myList() { try { return JSON.parse(localStorage.getItem(MLK()) || '[]'); } catch (e) { return []; } }
+  function myList() { try { return savedPaths(JSON.parse(localStorage.getItem(MLK()) || '[]')); } catch (e) { return []; } }
   function inMyList(url) { return myList().some(function (x) { return x.url === url; }); }
   function toggleMyList(it) {
     var list = myList(), had = list.some(function (x) { return x.url === it.url; });
@@ -1204,7 +1226,7 @@ html.touch.playing #backbtn.on{opacity:.7;left:auto;right:calc(env(safe-area-ins
     else if (act === 'forget') { cwForget(detItem.url); $('.txt .bar', det).outerHTML = detButtons(detItem); focus($('[data-act=play]', det)); }
     else if (act === 'back') closeDetails();
     else if (act === 'retry' && el.__run) el.__run();
-    else if (act === 'site') location.href = 'https://ge.movie/';
+    else if (act === 'site') location.href = location.origin + '/';
   }
 
   function doSearch() {

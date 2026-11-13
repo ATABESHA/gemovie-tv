@@ -3,14 +3,14 @@ import WebKit
 
 /**
  * Full-screen web view showing the app's own screens (tvui.html, shared with Android),
- * loaded under ge.movie's address so they may read the site's pages.
+ * loaded under the site's address (gemovie.tv) so they may read the site's pages.
  * The page talks to this code through window.TVApp (the same calls as on Android).
  */
 final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
 
     // ---- Settings (same as the Android app) ------------------------------
-    static let uiURL = URL(string: "https://ge.movie/tv-app")!
-    static let allowedDomains = ["ge.movie"]
+    static let uiURL = URL(string: "https://gemovie.tv/tv-app")!   // the site moved from ge.movie
+    static let allowedDomains = ["gemovie.tv", "ge.movie"]
     static let blockedHosts = [
         "doubleclick.net", "googlesyndication.com", "googleadservices.com",
         "adservice.google.com", "popads.net", "popcash.net", "propellerads.com",

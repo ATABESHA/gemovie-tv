@@ -23,9 +23,10 @@
   }
 
   // ======================================================== site rules
-  // Rules for ge.movie. Other sites get the generic behaviour.
+  // Rules for the movie site (gemovie.tv, formerly ge.movie; __SITE_HOST__ is its
+  // current address, filled in by the app). Other sites get the generic behaviour.
   var SITE = null;
-  if (/(^|\.)ge\.movie$/.test(location.hostname)) {
+  if (/(^|\.)(ge\.movie|gemovie\.tv)$/.test(location.hostname) || location.hostname === '__SITE_HOST__') {
     SITE = {
       sideZone: 'nav.sidebar',                                   // left menu: its own zone
       card: '.movie-card',                                       // one item, whole card framed

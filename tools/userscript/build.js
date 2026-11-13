@@ -46,7 +46,8 @@ const header = [
   '// @name         MyMovie',
   '// @namespace    https://github.com/ATABESHA/gemovie-tv',
   '// @version      ' + version,
-  '// @description  MyMovie for ge.movie on iPhone/iPad: open https://ge.movie/tv-app',
+  '// @description  MyMovie for gemovie.tv on iPhone/iPad: open https://gemovie.tv/tv-app',
+  '// @match        https://gemovie.tv/*',
   '// @match        https://ge.movie/*',
   ...PLAYER_HOSTS.map((h) => '// @match        https://' + h + '/*'),
   '// @run-at       document-start',
@@ -65,8 +66,8 @@ const body = `
 
   if (window.top === window) {
     // The app's own address: replace that small page with MyMovie. The page keeps
-    // ge.movie's address, so MyMovie may read the site's pages (same site).
-    if (location.hostname === 'ge.movie' && /^\\/tv-app\\/?$/.test(location.pathname)) {
+    // site's address (gemovie.tv, formerly ge.movie), so MyMovie may read the site's pages.
+    if (/(^|\\.)(gemovie\\.tv|ge\\.movie)$/.test(location.hostname) &&/^\\/tv-app\\/?$/.test(location.pathname)) {
       try { window.stop(); } catch (e) {}
       document.open();
       document.write(UI);

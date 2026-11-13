@@ -43,22 +43,27 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Full-screen WebView wrapper for ge.movie, driven by the TV remote.
+ * Full-screen WebView wrapper for gemovie.tv (formerly ge.movie), driven by the TV remote.
  * Arrow keys move a highlight between items (tvnav.js); OK sends a real
  * touch tap to the highlighted item, so no mouse pointer is ever needed.
  */
 public class MainActivity extends Activity {
 
     // ---- Settings you may want to change -------------------------------
-    static final String START_URL = "https://ge.movie/";
     /**
-     * The app's own TV interface (assets/tvui.html). It is loaded under ge.movie's
-     * address, so it may read the site's pages, but none of the site's own scripts,
-     * ads or sliders run.
+     * The site's address. It has moved before (ge.movie -> gemovie.tv): when the old
+     * address answers with a permanent redirect, the app switches to the new one by itself
+     * and keeps the profiles and lists saved under the old one.
      */
-    static final String UI_URL = "https://ge.movie/tv-app";
-    /** Main-page navigation is only allowed to these domains (and their subdomains). */
-    static final String[] ALLOWED_DOMAINS = {"ge.movie"};
+    static final String DEFAULT_HOST = "gemovie.tv";
+    /**
+     * The app's own TV interface (assets/tvui.html). It is loaded under the site's
+     * address (https://<site>/tv-app), so it may read the site's pages, but none of the
+     * site's own scripts, ads or sliders run.
+     */
+    static final String UI_PATH = "/tv-app";
+    /** Main-page navigation is only allowed to these domains (and their subdomains), plus the current site. */
+    static final String[] ALLOWED_DOMAINS = {"gemovie.tv", "ge.movie"};
     /**
      * true = tell sites this is a Linux PC. Off: Cloudflare's browser check compares that
      * claim with what the engine itself reports (Android) and keeps failing when they differ.
@@ -103,10 +108,24 @@ public class MainActivity extends Activity {
     private boolean videoOpen;
     private long lastBackPress;
 
+    /** Where the site is now (saved, so a move found once is remembered). */
+    private android.content.SharedPreferences prefs;
+    private String host;
+    /** The next page load replaces the history (Back must not return to a helper page). */
+    private boolean clearHistoryOnLoad;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (!TOUCH) getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
+        prefs = getSharedPreferences("site", MODE_PRIVATE);
+        host = prefs.getString("host", null);
+        if (host == null) {
+            // First start with this version: everything so far was saved under ge.movie.
+            host = DEFAULT_HOST;
+            prefs.edit().putString("host", host).putString("migrate_from", "ge.movie").commit();
+        }
 
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
@@ -114,12 +133,18 @@ public class MainActivity extends Activity {
 
         navScript = readAsset("tvnav.js")
                 .replace("__VIEWPORT_WIDTH__", String.valueOf(TOUCH ? 0 : VIEWPORT_WIDTH))
-                .replace("__MODE__", BuildConfig.UI_MODE);
+                .replace("__MODE__", BuildConfig.UI_MODE)
+                .replace("__SITE_HOST__", host);
         createWebView();
 
         loadTvUi();
         web.requestFocus();
         showSplash();
+        checkSiteMoved();
+    }
+
+    private String uiUrl() {
+        return "https://" + host + UI_PATH;
     }
 
     private void createWebView() {
@@ -488,6 +513,10 @@ public class MainActivity extends Activity {
 
         @Override
         public void onPageFinished(WebView view, String url) {
+            if (clearHistoryOnLoad && url != null && url.startsWith(uiUrl())) {
+                clearHistoryOnLoad = false;
+                view.clearHistory();
+            }
             String host = Uri.parse(url).getHost();
             if (host != null && !isBlockedHost(host)) extraAllowedHosts.add(host);
             // Fallback for older WebViews without document-start injection
@@ -517,9 +546,59 @@ public class MainActivity extends Activity {
         }
     }
 
+    // ------------------------------------------------------- site address
+
+    /**
+     * The site's old address answers with a permanent redirect: move to the new address.
+     * Runs in the background at start-up and when the app's page reads fail.
+     */
+    private void checkSiteMoved() {
+        final String current = host;
+        NET.execute(() -> {
+            String moved = permanentRedirectHost("https://" + current + "/");
+            if (moved == null || moved.equals(current)) return;
+            ui.post(() -> {
+                if (!current.equals(host)) return;
+                host = moved;
+                prefs.edit().putString("host", moved).putString("migrate_from", current).commit();
+                toast(t("საიტი გადავიდა: ", "Сайт переехал: ", "The site moved to ") + moved);
+                loadTvUi();
+            });
+        });
+    }
+
+    private static String permanentRedirectHost(String url) {
+        java.net.HttpURLConnection c = null;
+        try {
+            c = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+            c.setInstanceFollowRedirects(false);
+            c.setConnectTimeout(8000);
+            c.setReadTimeout(10000);
+            c.setRequestProperty("User-Agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36");
+            int code = c.getResponseCode();
+            if (code != 301 && code != 308) return null;
+            String loc = c.getHeaderField("Location");
+            if (loc == null) return null;
+            java.net.URL to = new java.net.URL(new java.net.URL(url), loc);
+            if (!"https".equals(to.getProtocol()) || to.getHost() == null || to.getHost().isEmpty()) return null;
+            return to.getHost().toLowerCase(Locale.ROOT);
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (c != null) c.disconnect();
+        }
+    }
+
+    /** Text in the app language (the page tells the app; Georgian until then). */
+    private static String t(String ka, String ru, String en) {
+        return "ru".equals(Updater.lang) ? ru : "en".equals(Updater.lang) ? en : ka;
+    }
+
     private boolean isAllowedHost(String host) {
         if (host == null) return false;
         host = host.toLowerCase(Locale.ROOT);
+        if (host.equals(this.host) || host.endsWith("." + this.host)) return true;
         if (extraAllowedHosts.contains(host)) return true;
         for (String d : ALLOWED_DOMAINS) {
             if (host.equals(d) || host.endsWith("." + d)) return true;
@@ -642,9 +721,34 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void retry() {
             ui.post(() -> {
-                if (lastFailedUrl == null || lastFailedUrl.startsWith(UI_URL)) loadTvUi();
+                if (lastFailedUrl == null || lastFailedUrl.contains(UI_PATH)) loadTvUi();
                 else web.loadUrl(lastFailedUrl);
             });
+        }
+
+        /** The page couldn't reach the site at all: maybe it moved again. */
+        @JavascriptInterface
+        public void recheckSite() {
+            ui.post(MainActivity.this::checkSiteMoved);
+        }
+
+        /** Everything the app saved under the old address (profiles, lists, settings). */
+        @JavascriptInterface
+        public void savedData(String json) {
+            ui.post(() -> {
+                if (prefs.getString("migrate_from", null) == null) return;
+                android.content.SharedPreferences.Editor e = prefs.edit().remove("migrate_from");
+                if (json != null && json.length() > 2) e.putString("restore", json);
+                e.commit();
+                clearHistoryOnLoad = true;
+                loadTvUi();
+            });
+        }
+
+        /** The saved data is now stored under the new address. */
+        @JavascriptInterface
+        public void restored() {
+            prefs.edit().remove("restore").apply();
         }
     }
 
@@ -764,7 +868,7 @@ public class MainActivity extends Activity {
     // ------------------------------------------------- Cloudflare browser check
 
     /*
-     * ge.movie sometimes asks Cloudflare to check the browser first. The app's interface
+     * The site sometimes asks Cloudflare to check the browser first. The app's interface
      * only downloads pages in the background, where that check can't run, so the real
      * site is opened here in a plain page the way any browser shows it. The check runs
      * by itself; if it shows a "verify you are human" box, the arrows move a pointer and
@@ -824,7 +928,7 @@ public class MainActivity extends Activity {
         String old = major > 0 && major < 110
                 ? "\n⚠ Android System WebView " + wv + " is old — update it in Google Play, the check may fail on it."
                 : "";
-        cfInfo.setText("ge.movie is checking the browser. Wait a few seconds. If a box appears, move the "
+        cfInfo.setText(host + " is checking the browser. Wait a few seconds. If a box appears, move the "
                 + "pointer onto it with the arrows and press OK.  Back = cancel.   (WebView " + wv + ")" + old);
         cfLayer.addView(cfInfo, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -845,7 +949,7 @@ public class MainActivity extends Activity {
             cfY = cfLayer.getHeight() * 0.42f;
             moveCfPointer(0, 0);
         });
-        cfWeb.loadUrl(START_URL);
+        cfWeb.loadUrl("https://" + host + "/");
         cfWeb.requestFocus();
         ui.postDelayed(cfPoll, 1500);
     }
@@ -907,15 +1011,34 @@ public class MainActivity extends Activity {
         CookieManager.getInstance().flush();
         if (!passed) cfCancelledAt = SystemClock.uptimeMillis();
         if (passed) {
-            toast("✓ ge.movie");
+            toast("✓ " + host);
             loadTvUi();
         }
         web.requestFocus();
     }
 
     private void loadTvUi() {
-        // The page runs under ge.movie's address, so the app's logo is embedded into it.
+        // The site moved: what the app saved (profiles, Continue, My List, settings) is stored
+        // under the old address. Read it there first; this page needs no network.
+        String from = prefs.getString("migrate_from", null);
+        if (from != null && !from.equals(host)) {
+            web.loadDataWithBaseURL("https://" + from + UI_PATH,
+                    "<html><body style='background:#000'><script>var d='{}';"
+                            + "try{d=JSON.stringify(Object.assign({},localStorage))}catch(e){}"
+                            + "TVApp.savedData(d)</script></body></html>",
+                    "text/html", "utf-8", null);
+            return;
+        }
+        // ...and write it under the new address, before the app's own code reads it.
+        // Keys that already exist there are kept.
+        String restore = prefs.getString("restore", null);
+        String pre = restore == null ? "" : "<script>(function(d){try{for(var k in d)"
+                + "if(localStorage.getItem(k)===null)localStorage.setItem(k,d[k]);TVApp.restored()}catch(e){}})("
+                + restore.replace("</", "<\\/") + ")</script>";
+
+        // The page runs under the site's address, so the app's logo is embedded into it.
         String html = readAsset("tvui.html")
+                .replace("<head>", "<head>" + pre)
                 .replace("__LOGO__", "data:image/png;base64," + readAssetBase64("logo.png"))
                 .replace("__AV_PARENTS__", "data:image/jpeg;base64," + readAssetBase64("av_parents.jpg"))
                 .replace("__AV_SON__", "data:image/jpeg;base64," + readAssetBase64("av_son.jpg"))
@@ -923,7 +1046,7 @@ public class MainActivity extends Activity {
                 .replace("__VIEWPORT__", TOUCH
                         ? "width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
                         : "width=" + VIEWPORT_WIDTH);
-        web.loadDataWithBaseURL(UI_URL, html, "text/html", "utf-8", UI_URL);
+        web.loadDataWithBaseURL(uiUrl(), html, "text/html", "utf-8", uiUrl());
     }
 
     private String readAssetBase64(String name) {
