@@ -72,6 +72,38 @@ The app tells you when a newer build is on GitHub; installing it is the same ste
 The iPhone project is in `ios/` (Swift). The Mac at GitHub builds it; to build it yourself on
 a Mac: `brew install xcodegen`, then `cd ios && xcodegen` and open `GeMovie.xcodeproj`.
 
+## Kinogo TV (second app, `kinogo/`)
+
+A separate Android TV app for the **Kinogo** catalogue, built by the same workflow and released
+next to MyMovie as `kinogo-tv.apk` (test builds: `kinogo-tv-test.apk`). It installs beside MyMovie
+(id `com.atabesha.kinogo`) and updates itself the same way.
+
+It replaces the original Kinogo app (`com.oxoo.kinogo1`, a Flutter "OXOO" template), keeping only
+what is needed to watch:
+
+- **Data:** the same REST API the original app uses (`geo.mevicer.ge/rest-api/v130/`, with the key
+  built into that app). The app's own screens (`kinogo/src/main/assets/index.html`) ask for `/api/...`
+  and the app forwards it with the key.
+- **No ads, no trackers:** no AdMob, Unity Ads, Firebase, Google sign-in, billing or Cast. The only
+  permissions are Internet and installing its own updates. About 4 MB instead of 48 MB.
+- **Playback:** direct streams (HLS/MP4) play in a native player (ExoPlayer). "Web" servers open in a
+  locked-down web view that blocks ad hosts, pop-ups and redirects, finds the video stream inside the
+  page and hands it to the native player. If nothing is found, a red pointer appears: arrows move it,
+  OK clicks, ⏩ tries the next server. A server that fails moves on to the next one of the same language.
+- **Screens:** Home (pinned preview, Continue watching, top/new/genre rows, TV channels), Movies (by
+  genre, endless), Series (seasons + episodes, remembers the last episode), Live TV, My List, Search
+  (titles in Latin letters), Georgian/English.
+
+| Button (player) | Does |
+|---|---|
+| OK | Play / pause |
+| ◀ ▶ | 10 s back / forward (hold: 30 s, then 60 s) |
+| ▲ ▼ | Show the controls (audio / subtitles / speed in the ⚙ menu) |
+| Back | Close the controls, then the player (the position is saved) |
+
+Preview the screens on a PC: `python tools/kinogo-preview/serve.py`, then open
+`http://localhost:8771/assets/index.html` (arrows + Enter).
+
 ## Samsung TVs
 
 A Tizen version for Samsung TVs (made for a 2017 UE55MU6255, works on newer ones) is in

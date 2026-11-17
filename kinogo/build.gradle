@@ -1,0 +1,64 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Kinogo TV: a clean remote-control app for the Kinogo catalogue (geo.mevicer.ge REST API).
+// No ads, no trackers, no Google/Firebase services. Built and released next to MyMovie.
+def buildNumber = Integer.parseInt((project.findProperty('versionCode') ?: '1').toString())
+
+android {
+    namespace 'com.atabesha.kinogo'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.atabesha.kinogo'
+        minSdk 24
+        targetSdk 34
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
+        buildConfigField 'String', 'APK_NAME', '"kinogo-tv"'
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    // Same personal key as MyMovie (kept in the repo on purpose), so updates install over the old app.
+    signingConfigs {
+        tv {
+            storeFile file('../app/gemovie-tv.jks')
+            storePassword 'gemovietv'
+            keyAlias 'gemovie'
+            keyPassword 'gemovietv'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.tv
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.tv
+        }
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'androidx.core:core:1.13.1'
+    // Native video player (HLS / MP4), plays the direct streams without any web page or ads.
+    implementation 'androidx.media3:media3-exoplayer:1.4.1'
+    implementation 'androidx.media3:media3-exoplayer-hls:1.4.1'
+    implementation 'androidx.media3:media3-ui:1.4.1'
+}

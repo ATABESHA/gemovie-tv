@@ -4,6 +4,7 @@ name: Build apps
 #   gemovie-tv.apk      Android TV (remote control)
 #   gemovie-mobile.apk  Android phones and tablets (touch)
 #   gemovie-ios.ipa     iPhone and iPad (unsigned: install it with Sideloadly / AltStore)
+#   kinogo-tv.apk       Kinogo TV: separate Android TV app for the Kinogo catalogue (kinogo/)
 #
 # Two channels:
 #  - every push to main  -> TEST builds (release "test", files end in -test)
@@ -52,21 +53,24 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Build TV and phone/tablet apps
-        run: gradle --no-daemon -PversionCode=${{ github.run_number }} assembleTvRelease assembleMobileRelease
+      - name: Build TV and phone/tablet apps (+ Kinogo TV)
+        run: gradle --no-daemon -PversionCode=${{ github.run_number }} :app:assembleTvRelease :app:assembleMobileRelease :kinogo:assembleRelease
 
       - name: Rename APKs and write version
         run: |
           SUFFIX=$([ "$TO_TV" = "true" ] && echo "" || echo "-test")
           cp app/build/outputs/apk/tv/release/app-tv-release.apk "gemovie-tv$SUFFIX.apk"
           cp app/build/outputs/apk/mobile/release/app-mobile-release.apk "gemovie-mobile$SUFFIX.apk"
+          cp kinogo/build/outputs/apk/release/kinogo-release.apk "kinogo-tv$SUFFIX.apk"
           echo "${{ github.run_number }}" > version.txt
 
       - name: Upload APKs (Actions tab)
         uses: actions/upload-artifact@v4
         with:
           name: android-${{ github.run_number }}
-          path: gemovie-*.apk
+          path: |
+            gemovie-*.apk
+            kinogo-tv*.apk
 
       # Test channel: .../releases/download/test/gemovie-tv-test.apk (and gemovie-mobile-test.apk)
       - name: Publish TEST builds
@@ -75,18 +79,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete test --yes --cleanup-tag || true
-          gh release create test gemovie-tv-test.apk gemovie-mobile-test.apk version.txt --prerelease --target "$GITHUB_SHA" \
+          gh release create test gemovie-tv-test.apk gemovie-mobile-test.apk kinogo-tv-test.apk version.txt --prerelease --target "$GITHUB_SHA" \
             --title "TEST build ${{ github.run_number }}" \
             --notes "Built from ${GITHUB_SHA::7}. For testing (BlueStacks, phone). The iPhone file is added when its build finishes."
 
-      # Release channel: .../releases/download/latest/gemovie-tv.apk (+ gemovie-mobile.apk, version.txt)
+      # Release channel: .../releases/download/latest/gemovie-tv.apk (+ gemovie-mobile.apk, kinogo-tv.apk, version.txt)
       - name: Publish release
         if: env.TO_TV == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest gemovie-tv.apk gemovie-mobile.apk version.txt --target "$GITHUB_SHA" \
+          gh release create latest gemovie-tv.apk gemovie-mobile.apk kinogo-tv.apk version.txt --target "$GITHUB_SHA" \
             --title "MyMovie (build ${{ github.run_number }})" \
             --notes "Built from ${GITHUB_SHA::7}. The Android apps offer this update by themselves. iPhone: gemovie-ios.ipa (added when its build finishes)."
 
