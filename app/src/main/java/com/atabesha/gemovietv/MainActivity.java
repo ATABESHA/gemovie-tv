@@ -118,6 +118,10 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (!TOUCH) getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        // Debug builds only: let Chrome DevTools on the PC inspect the pages (chrome://inspect).
+        if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            WebView.setWebContentsDebuggingEnabled(true);
+        }
 
         prefs = getSharedPreferences("site", MODE_PRIVATE);
         host = prefs.getString("host", null);

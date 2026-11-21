@@ -207,6 +207,14 @@
     if (typeof file !== 'string' || !file || file === PL.plistFile) return;
     PL.plistFile = file;
     PL.plist = null;
+    // The site's newer player (videodb v2, series) is given the episode list itself as JSON
+    // text instead of its address.
+    var text = file.replace(/^\s+/, '');
+    if (text.charAt(0) === '[') {
+      try { var j0 = JSON.parse(text); PL.plist = Array.isArray(j0) ? j0 : null; } catch (e) {}
+      if (PL.open && !PL.list) renderPanel();
+      return;
+    }
     fetch(file).then(function (r) { return r.json(); }).then(function (j) {
       PL.plist = Array.isArray(j) ? j : null;
       if (PL.open && !PL.list) renderPanel();
@@ -540,21 +548,93 @@
     var tries = 0;
     (function wait() {
       if (!PL.started) return;
-      if (!pjs()) { if (++tries < 60) setTimeout(wait, 300); else PL.started = false; return; }
+      // The site's newer player (videodb v2) is made only after it has loaded its playlist
+      // and a playback session, which can take a while.
+      if (!pjs()) { if (++tries < 200) setTimeout(wait, 300); else PL.started = false; return; }
       api('play');
       loadPlaylist();
-      applyPrefs();
       if (!TOUCH) cleanWhenReady();
-      if (resume && resume.ep) {
-        // Series: go to the saved episode first (the player may still be loading its list),
-        // then to the saved time in it.
-        ensureEpisode(resume.ep, function () { if (resume.t > 5) seekWhenReady(resume.t, 800); });
-      } else if (resume && resume.t > 5) {
-        seekWhenReady(resume.t, 0);
-      }
+      // While it starts, that player fetches the keys for the first seconds of video. A jump or
+      // a quality change at that moment can leave it waiting for good, with a black picture.
+      // So: wait until the movie really plays, then go to the saved place, then choose quality
+      // and language.
+      function prefsLater() { setTimeout(function () { whenPlaying(applyPrefs); }, 3000); }
+      whenPlaying(function () {
+        if (resume && resume.ep) {
+          // Series: go to the saved episode first, then to the saved time in it.
+          ensureEpisode(resume.ep, function () { if (resume.t > 5) seekWhenReady(resume.t, 800); prefsLater(); });
+        } else if (resume && resume.t > 5) {
+          seekWhenReady(resume.t, 0);
+          prefsLater();
+        } else {
+          applyPrefs();
+        }
+      });
+      startWatchdog();
       clearInterval(progTimer);
       progTimer = setInterval(function () { if (api('playing')) reportProgress(); }, 15000);
+      // The site's newer player starts every episode at 480p: choose again when it changes.
+      PL.prefsFor = api('playlist_id') || '';
+      clearInterval(PL.epTimer);
+      PL.epTimer = setInterval(function () {
+        var id = api('playlist_id') || '';
+        if (id && id !== PL.prefsFor) { PL.prefsFor = id; loadPlaylist(); prefsLater(); }
+      }, 2000);
     })();
+  }
+
+  // Calls fn once the picture is really moving (not an ad, not still loading). Gives up after 90 s.
+  function whenPlaying(fn) {
+    var n = 0;
+    (function check() {
+      if (!PL.started) return;
+      var v = mainVideo();
+      if (v && !v.paused && v.readyState >= 3 && v.currentTime > 0.3 && !api('vastnow')) { fn(); return; }
+      if (++n < 180) setTimeout(check, 500);
+    })();
+  }
+
+  // Watchdog while a movie plays.
+  //  - Stuck: playing, but no new picture for ~8 s (seen with the site's newer player after a
+  //    jump). A small jump makes it load again, as pressing Right would.
+  //  - Too slow: over half a minute the movie moved clearly slower than the clock, i.e. this
+  //    quality arrives slower than it plays (4K on this TV did). One quality step down.
+  function startWatchdog() {
+    clearInterval(PL.dogTimer);
+    var lastT = -1, stuck = 0, nudges = 0, win = null;
+    PL.dogTimer = setInterval(function () {
+      var v = mainVideo(), now = Date.now();
+      if (!v || v.paused || v.seeking || api('vastnow')) { stuck = 0; lastT = -1; win = null; return; }
+      var t = v.currentTime;
+      if (v.readyState < 3 && t === lastT) {
+        stuck += 2;
+        if (stuck >= 8 && nudges < 6) { nudges++; stuck = 0; api('seek', t + 0.5); win = null; }
+      } else {
+        stuck = 0;
+      }
+      lastT = t;
+      if (!win || t < win.t || t - win.t > (now - win.at) / 1000 + 5) { win = { at: now, t: t }; return; }
+      if (now - win.at >= 30000) {
+        var speed = (t - win.t) / ((now - win.at) / 1000);
+        win = { at: now, t: t };
+        if (speed < 0.85) stepDown();
+      }
+    }, 2000);
+  }
+
+  // One quality lower (not below 720p), remembered for a week so the next movie starts there.
+  function stepDown() {
+    var q = arr(api('qualities')), cur = qualityHeight(api('quality')), qi = -1, bh = 0;
+    q.forEach(function (x, j) { var h = qualityHeight(x); if (h < cur && h >= 720 && h > bh) { bh = h; qi = j; } });
+    if (qi < 0) return;
+    api('quality', qi);
+    pref('qcap', String(bh));
+    pref('qcapAt', String(Date.now()));
+    showBar(pt('quality') + ': ' + q[qi]);
+  }
+  function qualityCap() {
+    var cap = +pref('qcap') || 0, at = +pref('qcapAt') || 0;
+    return cap && Date.now() - at < 7 * 864e5 ? cap : 0;
   }
 
   function ensureEpisode(ep, done) {
@@ -578,13 +658,22 @@
     }, delay || 0);
   }
 
+  // A quality name as a picture height: "1080p" -> 1080, "2k" -> 1440, "4k" -> 2160.
+  function qualityHeight(x) {
+    var s = String(x).toLowerCase(), m = /(\d+)\s*k\b/.exec(s);
+    if (m) return { 2: 1440, 4: 2160, 8: 4320 }[m[1]] || +m[1] * 540;
+    m = /(\d{3,4})\s*p/.exec(s);
+    return m ? +m[1] : (parseInt(s, 10) || 0);
+  }
+
   function applyPrefs() {
     var n = 0;
     (function attempt() {
       var q = arr(api('qualities'));
       if (!q.length || !(+api('duration'))) { if (++n < 40) setTimeout(attempt, 500); return; }
-      var qi = -1, bh = 0;            // always the highest quality on offer
-      q.forEach(function (x, j) { var h = parseInt(x, 10) || 0; if (h >= bh) { bh = h; qi = j; } });
+      // The highest quality on offer, unless this TV recently couldn't keep up with it (stepDown).
+      var qi = -1, bh = 0, cap = qualityCap();
+      q.forEach(function (x, j) { var h = qualityHeight(x); if (h >= bh && (!cap || h <= cap)) { bh = h; qi = j; } });
       if (qi >= 0 && api('quality') !== q[qi]) api('quality', qi);
       // default movie language from the app's settings (Georgian unless changed)
       var rx = AUDIO_RX[PL.audioPref], tracks = arr(api('audiotracks')), ai = -1;
@@ -726,6 +815,8 @@
   function playerStop() {
     reportProgress();
     clearInterval(progTimer);
+    clearInterval(PL.epTimer);
+    clearInterval(PL.dogTimer);
     PL.started = false;
     closePanel();
     hideBar();

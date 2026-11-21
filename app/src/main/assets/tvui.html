@@ -1040,6 +1040,12 @@ html.touch.playing #backbtn.on{opacity:.7;left:auto;right:calc(env(safe-area-ins
     f.id = 'player';
     f.allow = 'autoplay; encrypted-media; fullscreen';
     f.setAttribute('allowfullscreen', '');
+    // The site's player (videodb v2) asks the gemovie.tv page around it for a playback ticket
+    // when it can tell it is embedded there. This page only looks like the site to it and can't
+    // answer, so the player would wait and stay black. Without a referrer it fetches the ticket
+    // from its own server, as it does on any other site.
+    f.referrerPolicy = 'no-referrer';
+    f.setAttribute('referrerpolicy', 'no-referrer');
     var src = detData.embed, m = resume && /^(\d+)-(\d+)$/.exec(resume.ep || '');
     if (m && /[?&]season=\d+/.test(src)) {
       src = src.replace(/([?&]season=)\d+/, '$1' + m[1]).replace(/([?&]episode=)\d+/, '$1' + m[2]);
