@@ -4,7 +4,9 @@ plugins {
 
 // Kinogo TV: a clean remote-control app for the Kinogo catalogue (geo.mevicer.ge REST API).
 // No ads, no trackers, no Google/Firebase services. Built and released next to MyMovie.
-def buildNumber = Integer.parseInt((project.findProperty('versionCode') ?: '1').toString())
+// Its own number (the workflow passes kinogoVersionCode = 100 + commits that changed kinogo/),
+// so a MyMovie-only change doesn't offer a Kinogo update.
+def buildNumber = Integer.parseInt((project.findProperty('kinogoVersionCode') ?: project.findProperty('versionCode') ?: '1').toString())
 
 android {
     namespace 'com.atabesha.kinogo'

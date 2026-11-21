@@ -57,6 +57,7 @@ public class PlayerActivity extends Activity {
     private boolean live;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean failed;
+    private boolean retried;
     private int seekStreak;
 
     @Override
@@ -91,7 +92,7 @@ public class PlayerActivity extends Activity {
         String sub = session.optString("sub", "");
         String label = source.optString("label", "");
         title.setText(session.optString("title", "") + (sub.isEmpty() ? "" : "  ·  " + sub)
-                + (label.isEmpty() ? "" : "  ·  " + label));
+                + (label.isEmpty() || sub.contains(label) ? "" : "  ·  " + label));
         FrameLayout.LayoutParams tlp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         tlp.gravity = Gravity.TOP | Gravity.START;
         tlp.setMargins(48, 32, 48, 0);
@@ -159,6 +160,14 @@ public class PlayerActivity extends Activity {
         player.addListener(new Player.Listener() {
             @Override
             public void onPlayerError(PlaybackException error) {
+                // A network hiccup: try the same server once more from the same place before moving on.
+                int code = error.errorCode;
+                if (!retried && code >= 2000 && code < 3000) {
+                    retried = true;
+                    Log.w("Kinogo", "retry after " + error.getErrorCodeName());
+                    ui.postDelayed(() -> { if (player != null) { player.prepare(); player.play(); } }, 1500);
+                    return;
+                }
                 Log.w("Kinogo", "player error " + error.getErrorCodeName() + " " + error.getMessage());
                 onFail();
             }
@@ -166,9 +175,10 @@ public class PlayerActivity extends Activity {
             @Override
             public void onPlaybackStateChanged(int state) {
                 Log.i("Kinogo", "player state " + state + " at " + player.getCurrentPosition() + " / " + player.getDuration());
+                if (state == Player.STATE_READY) retried = false;
                 if (state == Player.STATE_ENDED) {
                     forget();
-                    finish();
+                    if (!playNext()) finish();
                 }
             }
         });
@@ -178,6 +188,35 @@ public class PlayerActivity extends Activity {
         player.setPlayWhenReady(true);
         player.prepare();
         ui.postDelayed(saver, 15000);
+    }
+
+    /**
+     * Series: at the end of an episode the next one starts (session.next, filled by the page:
+     * [{key, sub, meta, source}, …]).
+     */
+    private boolean playNext() {
+        org.json.JSONArray next = session.optJSONArray("next");
+        if (next == null || next.length() == 0) return false;
+        try {
+            JSONObject n = next.getJSONObject(0);
+            org.json.JSONArray rest = new org.json.JSONArray();
+            for (int i = 1; i < next.length(); i++) rest.put(next.get(i));
+            JSONObject s = new JSONObject();
+            s.put("key", n.optString("key"));
+            s.put("title", session.optString("title"));
+            s.put("sub", n.optString("sub"));
+            s.put("meta", n.optJSONObject("meta"));
+            s.put("sources", new org.json.JSONArray().put(n.getJSONObject("source")));
+            s.put("index", 0);
+            s.put("start", -1);   // its own saved place, if any
+            s.put("next", rest);
+            Toast.makeText(this, "▶ " + n.optString("sub"), Toast.LENGTH_LONG).show();
+            Playback.open(this, s);
+            finish();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /** This stream doesn't play: show its web player instead, or try the next server. */

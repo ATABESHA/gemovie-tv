@@ -76,7 +76,9 @@ a Mac: `brew install xcodegen`, then `cd ios && xcodegen` and open `GeMovie.xcod
 
 A separate Android TV app for the **Kinogo** catalogue, built by the same workflow and released
 next to MyMovie as `kinogo-tv.apk` (test builds: `kinogo-tv-test.apk`). It installs beside MyMovie
-(id `com.atabesha.kinogo`) and updates itself the same way.
+(id `com.atabesha.kinogo`) and updates itself the same way. It has its own version number
+(`kinogo-tv-version.txt` = 100 + commits that changed `kinogo/`), so a MyMovie-only change doesn't
+offer a Kinogo update.
 
 It replaces the original Kinogo app (`com.oxoo.kinogo1`, a Flutter "OXOO" template), keeping only
 what is needed to watch:
@@ -89,7 +91,11 @@ what is needed to watch:
 - **Playback:** direct streams (HLS/MP4) play in a native player (ExoPlayer). "Web" servers open in a
   locked-down web view that blocks ad hosts, pop-ups and redirects, finds the video stream inside the
   page and hands it to the native player. If nothing is found, a red pointer appears: arrows move it,
-  OK clicks, ⏩ tries the next server. A server that fails moves on to the next one of the same language.
+  OK clicks, ⏩ tries the next server. A network error is retried once; a server that still fails moves on
+  to the next one of the same language. At the end of an episode the next one starts by itself.
+- Tested on the Bravia (2026-11-21): direct HLS, web-player servers, fallback, resume, next episode,
+  live channels (1TV Sport, Silk). The five `watch-time.net` sports channels are refused (403) by their
+  stream host for everyone, including their own web player.
 - **Screens:** Home (pinned preview, Continue watching, top/new/genre rows, TV channels), Movies (by
   genre, endless), Series (seasons + episodes, remembers the last episode), Live TV, My List, Search
   (titles in Latin letters), Georgian/English.

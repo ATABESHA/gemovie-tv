@@ -27,9 +27,8 @@ import java.nio.charset.StandardCharsets;
 /**
  * Checks GitHub for a newer build and installs it. Two release channels are checked,
  * and the newer one wins:
- *   "latest" - the TV release        (gemovie-tv.apk / gemovie-mobile.apk + version.txt)
- *   "test"   - every build of main    (gemovie-tv-test.apk / gemovie-mobile-test.apk + version.txt)
- * The TV build fetches the gemovie-tv files, the phone/tablet build the gemovie-mobile ones.
+ *   "latest" - the TV release        (kinogo-tv.apk + kinogo-tv-version.txt)
+ *   "test"   - every build of main    (kinogo-tv-test.apk + kinogo-tv-version.txt)
  * Runs by itself at start-up (then at most every 6 h) and from the app's Update button.
  */
 final class Updater {
@@ -42,6 +41,9 @@ final class Updater {
 
     /** App language, set by the page: ka | ru | en */
     static volatile String lang = "ka";
+
+    /** When the update question was last open (it may still be open): the app ignores OK around it. */
+    static volatile long dialogUntil;
 
     private static String t(String ka, String ru, String en) {
         return "ru".equals(lang) ? ru : "en".equals(lang) ? en : ka;
@@ -86,7 +88,7 @@ final class Updater {
             String bestApk = null;
             for (String[] ch : CHANNELS) {
                 try {
-                    int v = Integer.parseInt(readText(REPO + ch[0] + "/version.txt").trim());
+                    int v = Integer.parseInt(readText(REPO + ch[0] + "/" + BuildConfig.APK_NAME + "-version.txt").trim());
                     if (v > best) { best = v; bestApk = REPO + ch[0] + "/" + ch[1]; }
                 } catch (Exception ignored) {
                     // This channel has nothing yet, or we're offline.
@@ -125,7 +127,10 @@ final class Updater {
                 .setPositiveButton(t("დაყენება", "Установить", "Install"), (d, w) -> download(apkUrl))
                 .setNegativeButton(t("მოგვიანებით", "Позже", "Later"), (d, w) -> busy = false)
                 .setOnCancelListener(d -> busy = false)
+                // the OK that closes the question must not also reach the page behind it
+                .setOnDismissListener(d -> dialogUntil = SystemClock.uptimeMillis() + 800)
                 .show();
+        dialogUntil = Long.MAX_VALUE;
     }
 
     private void download(String apkUrl) {

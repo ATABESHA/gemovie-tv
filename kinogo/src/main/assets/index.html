@@ -560,12 +560,26 @@ function playMovie(i){
     meta: {item: {videos_id: d.videos_id, title: d.title, thumbnail_url: d.thumbnail_url, poster_url: d.poster_url, is_tvseries: '0', imdb_rating: d.imdb_rating}},
     sources: list.map(function(v){ return {label: v.label, type: v.file_type, url: v.file_url}; })});
 }
-function playEpisode(si, e){
-  var d = det.data, s = det.seasons[si];
-  start({key: 'ep:' + d.videos_id + ':' + e.episodes_id, title: mainName(d.title), sub: s.seasons_name + ' · ' + e.episodes_name,
+function episodeSession(d, si, e){
+  var s = det.seasons[si];
+  return {key: 'ep:' + d.videos_id + ':' + e.episodes_id, sub: s.seasons_name + ' · ' + e.episodes_name,
     meta: {badge: e.episodes_name, ep: e.episodes_id, season: si,
       item: {videos_id: d.videos_id, title: d.title, thumbnail_url: d.thumbnail_url, poster_url: d.poster_url, is_tvseries: '1'}},
-    sources: [{label: e.episodes_name, type: e.file_type, url: e.file_url}]});
+    source: {label: e.episodes_name, type: e.file_type, url: e.file_url}};
+}
+function playEpisode(si, e){
+  var d = det.data, one = episodeSession(d, si, e);
+  // the episodes after this one (this season, then the next seasons): they follow by themselves
+  var next = [], after = false;
+  for (var k = si; k < det.seasons.length && next.length < 40; k++){
+    episodesOf(det.seasons[k]).forEach(function(x){
+      if (after && next.length < 40) next.push(episodeSession(d, k, x));
+      if (k === si && x.episodes_id === e.episodes_id) after = true;
+    });
+    if (k === si && !after) break;
+    after = true;
+  }
+  start({key: one.key, title: mainName(d.title), sub: one.sub, meta: one.meta, sources: [one.source], next: next});
 }
 function playChannel(id){
   api('single_details?type=tv&id=' + encodeURIComponent(id)).then(function(c){
